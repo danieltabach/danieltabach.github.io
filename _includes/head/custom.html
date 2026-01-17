@@ -1,0 +1,42 @@
+<!-- MathJax for rendering LaTeX math -->
+<script type="text/javascript" async
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      displayMath: [['$$','$$'], ['\\[','\\]']],
+      processEscapes: true
+    },
+    TeX: {
+      equationNumbers: { autoNumber: "AMS" }
+    }
+  });
+</script>
+
+<!-- Custom styles for blog posts -->
+<style>
+  /* Make images display as block elements, centered, no text wrap */
+  .page__content img {
+    display: block;
+    margin: 1.5em auto;
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Style image captions */
+  .page__content img + em {
+    display: block;
+    text-align: center;
+    font-size: 0.9em;
+    color: #999;
+    margin-top: -1em;
+    margin-bottom: 1.5em;
+  }
+
+  /* Ensure code blocks don't overflow */
+  .page__content pre {
+    overflow-x: auto;
+  }
+</style>
