@@ -1,11 +1,11 @@
 # Site settings
 title: Danny Tabach
-subtitle: "Data Scientist & Operations Research"
+subtitle: "Data Scientist"
 name: Danny Tabach
 email: Danieltabach42@gmail.com
 description: >-
-  Data Scientist specializing in optimization modeling, causal inference,
-  and production decision systems. Building tools that drive measurable impact.
+  Data Scientist at JPMorgan Chase. I build optimization platforms, design experiments,
+  and translate technical work into business impact.
 url: "https://danieltabach.github.io"
 baseurl: ""
 repository: "danieltabach/danieltabach.github.io"
@@ -41,7 +41,7 @@ plugins:
 author:
   name   : "Danny Tabach"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Data Scientist building optimization systems and causal inference frameworks. MS Analytics at Georgia Tech."
+  bio    : "Data Scientist at JPMorgan Chase. Full-stack: data to models to presentations. MS Analytics at Georgia Tech."
   location: "New York"
   links:
     - label: "GitHub"

@@ -3,34 +3,28 @@ permalink: /about/
 title: "About"
 ---
 
-I am a Data Scientist focused on building production systems that drive measurable business impact through optimization, causal inference, and machine learning.
+I'm Danny, a Senior Data Scientist at JPMorgan Chase based in New York.
 
-My work centers on turning complex operational problems into tractable decision frameworks. I have experience designing resource allocation platforms, causal experimentation pipelines, and forecasting systems that operate at enterprise scale.
+My day-to-day involves building large-scale optimization platforms, designing experiments, and translating technical work into things executives actually care about. But I don't think of myself as an "optimization guy" or an "ML guy." I like the full stack: wrangling messy data, figuring out the right approach, writing clean code, building something that works, and then telling the story of why it matters.
+
+I treat data science as an art form. Most problems have multiple valid solutions, and I find the interesting part is figuring out which one actually fits the situation, then executing it well. I'm pragmatic about this. I know when an idea isn't working and when to pivot.
 
 ## Background
 
-I am currently completing my **MS in Analytics (Computational Data Science)** at Georgia Institute of Technology, expected May 2026.
+**MS in Analytics (Computational Data Science)** at Georgia Institute of Technology, expected May 2026.
 
-I hold a **BBA in Computer Information Systems (Data Analytics)** from Baruch College, City University of New York.
+**BBA in Computer Information Systems (Data Analytics)** from Baruch College, CUNY.
 
-## Technical Skills
+## What I Work With
 
-**Core Methods**
-Causal Inference, Experiment Design, Optimization Modeling (MILP), Statistical Analysis, Time Series, Impact Analysis
+**Methods:** Optimization modeling, causal inference, experiment design, time series, statistical analysis, ML (gradient boosting, tree-based models, clustering)
 
-**Machine Learning**
-XGBoost, Ensemble Methods, Tree-Based Models, Clustering, Regression Modeling
+**Stack:** Python, SQL, R, Spark, Snowflake, AWS, GCP, Tableau, Git
 
-**Languages & Tools**
-Python, SQL, R, Spark, Snowflake, AWS, GCP, BigQuery, Tableau, Git
+## Outside of Work
 
-## Current Interests
-
-- Decision systems that combine optimization with ML forecasting
-- Rigorous causal inference for policy evaluation
-- Scalable experimentation frameworks
-- ML monitoring and drift detection
+When I'm not at a keyboard, I play chess, train jiu-jitsu, and read too much fantasy. I'm based in New York.
 
 ---
 
-Feel free to reach out via [LinkedIn](https://linkedin.com/in/DanielTabach) or check out my work on [GitHub](https://github.com/danieltabach).
+Feel free to reach out on [LinkedIn](https://linkedin.com/in/DanielTabach) or check out my work on [GitHub](https://github.com/danieltabach).
