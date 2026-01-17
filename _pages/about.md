@@ -3,29 +3,29 @@ permalink: /about/
 title: "About"
 ---
 
-I'm Danny, a Senior Data Scientist at JPMorgan Chase based in New York. I'm a full-stack data scientist who likes building things - from messy data to clean models to presentations that actually land.
+I'm Danny, a Data Scientist at JPMorgan Chase. I'm a full-stack data scientist who likes building things - from messy data to clean models to presentations that actually land.
 
 ---
 
 ## How I Got Here
 
-I came to data science through chess. In high school, I was playing competitively - tournaments, training my team, studying grandmasters. I was obsessed with Mikhail Tal, the Soviet wizard who'd sacrifice pieces just to create chaos and complexity on the board.
+I came to data science through chess (duh). In high school, I was playing competitively - tournaments, training with a team, and finishing books. I wanted to play like Mikhail Tal, the Soviet wizard who'd sacrifice pieces just to create chaos and complexity on the board.
 
-Then in 2018, DeepMind released AlphaZero. It beat Stockfish, which I thought was the ceiling of chess computing. But what really got me wasn't that it won - it was *how* it played. It reminded me of Tal. It sacrificed pawns to free squares. It gave up material for long-term positional pressure. It played for complexity instead of greed. This wasn't brute-force calculation. It was something else.
+In 2018, Google's DeepMind team released AlphaZero. It beat Stockfish, which was the strongest chess engine in the world (it still is). But what really got me wasn't that it won - it was *how* it played. It reminded me of Tal. It sacrificed pawns to free squares. It gave up material for long-term positional pressure. It played for complexity instead of greed. Like a person witnessing a magic trick they can't explain, AlphaZero genuinely made me starry-eyed at the possibilities of this engine. 
 
-I needed to know how they built it.
+I *needed* to know how they built it.
 
-That rabbit hole led me to Andrew Ng's deep learning course, which led me to teaching myself to code, which led me to realizing I wanted to do this for a living. Not the analysis part - the *building* part. I liked that you could approach the same problem ten different ways and the interesting work was figuring out which one actually fit. It scratched the same itch as chess: constrained creativity, tradeoffs, finding the move that isn't obvious but works.
+That rabbit hole led me to Andrew Ng's deep learning course, which led me to teaching myself to code, which led me to realizing I wanted to do this for a living (I'd probably get bored if I did something else). Not the analysis part - the *building* part. I liked that you could approach the same problem ten different ways and the interesting work was figuring out which one actually fit. It scratched an itch for me: constrained creativity, tradeoffs, finding the move that isn't obvious but works.
 
-I took a non-traditional route. Baruch College, not a target school. No FAANG internship lined up. So I made my own path. At 20, I cold-networked my way into a data analyst role at SwagUp, a startup, and worked full-time while finishing my degree. I learned by doing - messy pipelines, scrappy dashboards, figuring things out because no one else was going to.
+I did not have a traditional mathematics-based route when going into this field, so when I get messages on linkedin asking "what did you do to get here?" - I don't always have a great answer. I attended Baruch College, not a target school, but strong for business and soft-skills communication. I took a major and a route that I found would align me the closest to this field. At 20, I cold-networked my way into a data analyst role at SwagUp, a startup, and worked full-time while finishing my degree. I learned by doing - I built pipelines, dashboards that needed to provide quick answers, and figuring out how to code back when stackoverflow was popular.
 
-When I first interviewed at JPMorgan, I didn't get the offer. The case study caught me off guard. Six months later, I tried again. This time I was ready.
+It wasn't always success - a lot of the results came from continously trying and showing up when it mattered. When I first interviewed at JPMorgan, I didn't get the offer. The case study caught me off guard. Six months later, I tried again, attending a company-sponsored hackathon and taking the role of team lead to deliver a project on the environmental tradeoffs of using nuclear vs. other resources for energy. I finally had the chance to interview again after pushing our team as a finalists. 
 
-The first two years at Chase were consulting-style work - six-month projects, different teams, learning how to build presentations, manage stakeholders, push back on unrealistic timelines. It taught me that data science isn't just modeling. It's communication, prioritization, knowing when to say "that's not the right question."
+The first two years at Chase were consulting-style work on a team called FAST (Focused Analytics Solutions Team) - six-to-eight month projects, different teams with different partners, learning how to build presentations, manage stakeholders, push back on unrealistic timelines and actually deliver the data *science* that our leaders wanted. Data science wasn't just modeling. It's communication, prioritization, and even knowing when to say "that's not the right question."
 
-Today I'm a Senior Data Scientist at Chase, and I lead a platform that shapes how the entire branch ecosystem makes staffing and resource decisions. I own the roadmap. I drive the architecture. The decisions are mine to make. Over the past year, I've built something that directly impacts how thousands of branches operate across the country.
+Today I'm a Senior Data Scientist at Chase, and I lead the build-out of a platform that shapes how the entire branch ecosystem makes staffing and resourcing decisions. Over the past year, I've built something that directly impacts how thousands of branches operate across the country.
 
-That's the work I get to do now.
+This is the work that excites me - and here, I want to share what I learned along the way.
 
 ---
 
