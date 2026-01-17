@@ -41,7 +41,7 @@ plugins:
 author:
   name   : "Danny Tabach"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Data Scientist at JPMorgan Chase. Full-stack: data to models to presentations. MS Analytics at Georgia Tech."
+  bio    : "Senior Data Scientist at JPMorgan Chase. Full-stack: data to models to presentations. MS Analytics at Georgia Tech."
   location: "New York"
   links:
     - label: "GitHub"
