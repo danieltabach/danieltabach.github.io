@@ -189,13 +189,13 @@ Where:
 
 <p>Component 1 contribution:</p>
 <ul>
-<li>Gaussian density at x=2 with μ=0, σ²=1: $\mathcal{N}(2 \mid 0, 1) = \frac{1}{\sqrt{2\pi}} e^{-(2-0)^2/2} = 0.054$</li>
+<li>Gaussian density at x=2 with μ=0, σ²=1: N(2 | 0, 1) = (1/√(2π)) × e^(-(2-0)²/2) = 0.054</li>
 <li>Weighted: π₁ × density = 0.6 × 0.054 = <strong>0.032</strong></li>
 </ul>
 
 <p>Component 2 contribution:</p>
 <ul>
-<li>Gaussian density at x=2 with μ=5, σ²=2: $\mathcal{N}(2 \mid 5, 2) = \frac{1}{\sqrt{4\pi}} e^{-(2-5)^2/4} = 0.030$</li>
+<li>Gaussian density at x=2 with μ=5, σ²=2: N(2 | 5, 2) = (1/√(4π)) × e^(-(2-5)²/4) = 0.030</li>
 <li>Weighted: π₂ × density = 0.4 × 0.030 = <strong>0.012</strong></li>
 </ul>
 
@@ -268,20 +268,20 @@ This is just Bayes' rule. We're computing: $P(\text{component } k \mid \text{poi
 <p><strong>Question:</strong> For a new point x = 2, what's the probability it came from each component?</p>
 
 <p><strong>Step 1: Compute the Gaussian density for each component.</strong></p>
-<p>The 1D Gaussian formula is: $\mathcal{N}(x \mid \mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$</p>
+<p>The 1D Gaussian formula is: N(x | μ, σ²) = (1/√(2πσ²)) × exp(-(x-μ)²/(2σ²))</p>
 
 <p>For component 1 (μ₁ = 0, σ₁² = 1):</p>
 <ul>
 <li>Distance from mean: (x - μ₁)² = (2 - 0)² = 4</li>
 <li>Exponent: -4 / (2 × 1) = -2</li>
-<li>Density: $\frac{1}{\sqrt{2\pi}} e^{-2} = 0.399 × 0.135 = 0.054$</li>
+<li>Density: (1/√(2π)) × e⁻² = 0.399 × 0.135 = 0.054</li>
 </ul>
 
 <p>For component 2 (μ₂ = 5, σ₂² = 2):</p>
 <ul>
 <li>Distance from mean: (x - μ₂)² = (2 - 5)² = 9</li>
 <li>Exponent: -9 / (2 × 2) = -2.25</li>
-<li>Density: $\frac{1}{\sqrt{4\pi}} e^{-2.25} = 0.282 × 0.105 = 0.030$</li>
+<li>Density: (1/√(4π)) × e⁻²·²⁵ = 0.282 × 0.105 = 0.030</li>
 </ul>
 
 <p><strong>Step 2: Multiply each density by its mixing weight.</strong></p>
@@ -338,7 +338,7 @@ Same idea: weighted average of squared deviations from the mean. The $(x_i - \mu
 <p><strong>Setup:</strong> We have 4 data points in 1D and K=2 components. After running the E-step, here are the responsibilities:</p>
 
 <table>
-<tr><th>Point $x_i$</th><th>Value</th><th>τ₁ (component 1)</th><th>τ₂ (component 2)</th></tr>
+<tr><th>Point xᵢ</th><th>Value</th><th>τ₁ (component 1)</th><th>τ₂ (component 2)</th></tr>
 <tr><td>1</td><td>1.0</td><td>0.9</td><td>0.1</td></tr>
 <tr><td>2</td><td>2.0</td><td>0.8</td><td>0.2</td></tr>
 <tr><td>3</td><td>8.0</td><td>0.2</td><td>0.8</td></tr>
@@ -347,20 +347,20 @@ Same idea: weighted average of squared deviations from the mean. The $(x_i - \mu
 
 <p><strong>Step 1: Compute effective counts.</strong></p>
 <ul>
-<li>$N_1 = 0.9 + 0.8 + 0.2 + 0.1 = 2.0$</li>
-<li>$N_2 = 0.1 + 0.2 + 0.8 + 0.9 = 2.0$</li>
+<li>N₁ = 0.9 + 0.8 + 0.2 + 0.1 = 2.0</li>
+<li>N₂ = 0.1 + 0.2 + 0.8 + 0.9 = 2.0</li>
 </ul>
 
 <p><strong>Step 2: Update weights.</strong></p>
 <ul>
-<li>$\pi_1 = 2.0 / 4 = 0.5$</li>
-<li>$\pi_2 = 2.0 / 4 = 0.5$</li>
+<li>π₁ = 2.0 / 4 = 0.5</li>
+<li>π₂ = 2.0 / 4 = 0.5</li>
 </ul>
 
 <p><strong>Step 3: Update means.</strong></p>
 <ul>
-<li>$\mu_1 = \frac{1}{2.0}(0.9×1 + 0.8×2 + 0.2×8 + 0.1×9) = \frac{4.9}{2.0} = 2.45$</li>
-<li>$\mu_2 = \frac{1}{2.0}(0.1×1 + 0.2×2 + 0.8×8 + 0.9×9) = \frac{15.0}{2.0} = 7.50$</li>
+<li>μ₁ = (1/2.0) × (0.9×1 + 0.8×2 + 0.2×8 + 0.1×9) = 4.9/2.0 = 2.45</li>
+<li>μ₂ = (1/2.0) × (0.1×1 + 0.2×2 + 0.8×8 + 0.9×9) = 15.0/2.0 = 7.50</li>
 </ul>
 
 <p><strong>Interpretation:</strong> Component 1's mean (2.45) is pulled toward points 1 and 2 (which have high responsibility to it). Component 2's mean (7.50) is pulled toward points 3 and 4.</p>

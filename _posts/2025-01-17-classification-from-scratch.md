@@ -55,7 +55,7 @@ $$\sigma(z) = \frac{1}{1 + e^{-z}}$$
 <li>Output is always between 0 and 1 (valid probability)</li>
 <li>Monotonically increasing (higher scores → higher probabilities)</li>
 <li>Smooth and differentiable everywhere</li>
-<li>Simple derivative: $\sigma'(z) = \sigma(z)(1 - \sigma(z))$</li>
+<li>Simple derivative: σ'(z) = σ(z)(1 - σ(z))</li>
 </ul>
 </details>
 
@@ -88,15 +88,15 @@ $$\ell(\theta) = \sum_{i=1}^{m} \left[ -\log(1 + e^{-\theta^T x^{(i)}}) + (y^{(i
 <details>
 <summary><strong>See the algebra step by step</strong></summary>
 <p>Starting with the log-likelihood:</p>
-<p>For a single sample with $y=1$:</p>
+<p>For a single sample with y=1:</p>
 <ul>
-<li>$\log \sigma(\theta^T x) = \log \frac{1}{1+e^{-\theta^T x}} = -\log(1+e^{-\theta^T x})$</li>
+<li>log σ(θᵀx) = log(1/(1+e⁻θᵀˣ)) = -log(1+e⁻θᵀˣ)</li>
 </ul>
-<p>For a single sample with $y=0$:</p>
+<p>For a single sample with y=0:</p>
 <ul>
-<li>$\log(1-\sigma(\theta^T x)) = \log \frac{e^{-\theta^T x}}{1+e^{-\theta^T x}} = -\theta^T x - \log(1+e^{-\theta^T x})$</li>
+<li>log(1-σ(θᵀx)) = log(e⁻θᵀˣ/(1+e⁻θᵀˣ)) = -θᵀx - log(1+e⁻θᵀˣ)</li>
 </ul>
-<p>Combining these with the $y^{(i)}$ and $(1-y^{(i)})$ weighting gives the simplified form.</p>
+<p>Combining these with the y⁽ⁱ⁾ and (1-y⁽ⁱ⁾) weighting gives the simplified form.</p>
 </details>
 
 ### Deriving the Gradient
@@ -135,25 +135,25 @@ This has a nice interpretation: the gradient is the sum of feature vectors, each
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-<p><strong>Setup:</strong> Single feature (1D), single data point: $x = 2$, $y = 1$, current $\theta = 0.5$</p>
+<p><strong>Setup:</strong> Single feature (1D), single data point: x = 2, y = 1, current θ = 0.5</p>
 
 <p><strong>Step 1: Compute prediction</strong></p>
 <ul>
-<li>$\theta^T x = 0.5 \times 2 = 1$</li>
-<li>$\sigma(1) = \frac{1}{1+e^{-1}} \approx 0.73$</li>
+<li>θᵀx = 0.5 × 2 = 1</li>
+<li>σ(1) = 1/(1+e⁻¹) ≈ 0.73</li>
 </ul>
 
 <p><strong>Step 2: Compute error</strong></p>
 <ul>
-<li>$y - \sigma(\theta^T x) = 1 - 0.73 = 0.27$</li>
+<li>y - σ(θᵀx) = 1 - 0.73 = 0.27</li>
 </ul>
 
 <p><strong>Step 3: Compute gradient</strong></p>
 <ul>
-<li>$\nabla_\theta \ell = x \cdot (y - \sigma(\theta^T x)) = 2 \times 0.27 = 0.54$</li>
+<li>∇θℓ = x × (y - σ(θᵀx)) = 2 × 0.27 = 0.54</li>
 </ul>
 
-<p><strong>Interpretation:</strong> The gradient is positive, so we should increase $\theta$. This makes sense: we predicted 0.73 but the true label is 1, so we want to push the prediction higher by increasing $\theta$.</p>
+<p><strong>Interpretation:</strong> The gradient is positive, so we should increase θ. This makes sense: we predicted 0.73 but the true label is 1, so we want to push the prediction higher by increasing θ.</p>
 </details>
 
 ### Batch Gradient Descent
@@ -353,27 +353,27 @@ Where:
 <summary><strong>Deriving this with MLE</strong></summary>
 <p>We want to find the word probabilities that maximize the likelihood of the observed word counts.</p>
 
-<p><strong>Setup:</strong> For class $c$, we observe word counts $c_k$ for each word $k$. We want $q_k = P(\text{word } k \mid \text{class } c)$ that maximizes:</p>
+<p><strong>Setup:</strong> For class c, we observe word counts c_k for each word k. We want q_k = P(word k | class c) that maximizes:</p>
 
-$$q^* = \arg\max_{q \in P_Y} \sum_{k} c_k \log q_k$$
+<p>q* = argmax Σₖ cₖ log qₖ</p>
 
-<p>subject to $\sum_k q_k = 1$ (probabilities must sum to 1).</p>
+<p>subject to Σₖ qₖ = 1 (probabilities must sum to 1).</p>
 
 <p><strong>Using Lagrange multipliers:</strong></p>
 
-$$\mathcal{L}(q, \lambda) = \sum_k c_k \log q_k - \lambda \left(\sum_k q_k - 1\right)$$
+<p>L(q, λ) = Σₖ cₖ log qₖ - λ(Σₖ qₖ - 1)</p>
 
-<p>Taking the derivative with respect to $q_k$ and setting to zero:</p>
+<p>Taking the derivative with respect to qₖ and setting to zero:</p>
 
-$$\frac{\partial \mathcal{L}}{\partial q_k} = \frac{c_k}{q_k} - \lambda = 0 \implies q_k = \frac{c_k}{\lambda}$$
+<p>∂L/∂qₖ = cₖ/qₖ - λ = 0 → qₖ = cₖ/λ</p>
 
-<p>Using the constraint $\sum_k q_k = 1$:</p>
+<p>Using the constraint Σₖ qₖ = 1:</p>
 
-$$\sum_k \frac{c_k}{\lambda} = 1 \implies \lambda = \sum_k c_k$$
+<p>Σₖ (cₖ/λ) = 1 → λ = Σₖ cₖ</p>
 
 <p>Therefore:</p>
 
-$$q_k = \frac{c_k}{\sum_{k'} c_{k'}}$$
+<p>qₖ = cₖ / Σₖ' cₖ'</p>
 
 <p>This is exactly our MLE formula: word count divided by total words.</p>
 </details>
