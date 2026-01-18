@@ -257,10 +257,10 @@ The approach:
 *k=3: Only three colors. Dramatic posterization effect.*
 
 ![Compressed to 12 colors](/assets/images/posts/clustering/compressed_shrek_cluster_12.png)
-*k=12: A reasonable balance between compression and quality.*
+*k=12: Still a bit shaky on the details.*
 
 ![Compressed to 24 colors](/assets/images/posts/clustering/compressed_shrek_cluster_24.png)
-*k=24: Nearly indistinguishable from the original in most areas.*
+*k=24: The colors start to resemble the original.*
 
 Honestly, there is probably a way to make good pixel-art out of this. 
 
