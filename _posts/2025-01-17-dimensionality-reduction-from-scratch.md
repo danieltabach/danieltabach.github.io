@@ -132,9 +132,9 @@ plt.show()
 
 ### Results
 
-When you run this code, you'll see a scatter plot like this:
+![PCA of European Countries by Food Consumption](/assets/images/posts/dimensionality-reduction/pca-countries.png)
 
-**[Figure: PCA of European Countries]** *Each point is a country, positioned by its first two principal components. Nordic countries (Sweden, Denmark, Norway, Finland) cluster in the lower right. Mediterranean countries (Italy, Spain, Portugal) cluster on the left. England sits far from mainland Europe.*
+*Each point is a country, positioned by its first two principal components. The first component captures 42% of variance, the second captures 18%.*
 
 The PCA plot reveals interesting geographic patterns:
 - **Nordic countries cluster together**: Sweden, Denmark, Norway, and Finland have similar diets
@@ -145,7 +145,9 @@ What's interesting is that Germany and Ireland have similar diets, but Ireland a
 
 When we flip the analysis (foods as data points, countries as features), we get another interesting view:
 
-**[Figure: PCA of Food Items]** *Each point is a food item. Garlic and olive oil appear as outliers at the top (Mediterranean-specific). Tea, coffee, and butter cluster together on the left (breakfast staples). Frozen foods group together on the right.*
+![PCA of Food Items Across European Countries](/assets/images/posts/dimensionality-reduction/pca-foods.png)
+
+*Each point is a food item. Garlic and olive oil appear as outliers (Mediterranean-specific). Tea and instant coffee cluster together (breakfast beverages).*
 
 Key patterns:
 - **Garlic and olive oil** stand out as outliers (Mediterranean-specific)
@@ -165,6 +167,16 @@ In practice, I've seen Data Science teams push back on PCA for client-facing wor
 - Finding outliers (they stand out clearly in PC space)
 - Preprocessing before other ML algorithms (reduces noise and computation)
 - When your audience is technical and comfortable with abstract representations
+
+### How Many Components Do You Need?
+
+A scree plot shows how much variance each principal component explains:
+
+![Variance Explained by Principal Components](/assets/images/posts/dimensionality-reduction/pca-variance-explained.png)
+
+*Left: Each bar shows variance explained by one PC. Right: Cumulative variance—the first 6 components capture ~90% of the total variance.*
+
+For the food consumption data, the first two components capture about 60% of variance. That's enough for visualization, but if you were using PCA for preprocessing, you might keep 5-6 components to retain 90%.
 
 ---
 
