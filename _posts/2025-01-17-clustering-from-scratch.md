@@ -544,207 +544,111 @@ Most misclassifications occur at the boundary where a blog has roughly equal lin
 
 ## Appendix: Complete Implementations
 
-<details>
-<summary>K-Means Implementation (click to expand)</summary>
+### K-Means Implementation
 
 ```python
 import numpy as np
 
 def assign_clusters(data, centroids, norm=2):
-    """Assign each point to its nearest centroid."""
-    distances = np.linalg.norm(
-        data[:, np.newaxis] - centroids,
-        axis=2,
-        ord=norm
-    )
+    distances = np.linalg.norm(data[:, np.newaxis] - centroids, axis=2, ord=norm)
     return np.argmin(distances, axis=1)
 
-
 def update_centroids(data, labels, k):
-    """Compute new centroids as mean of assigned points."""
     n_features = data.shape[1]
     centroids = np.zeros((k, n_features))
-
     for j in range(k):
         cluster_points = data[labels == j]
         if len(cluster_points) > 0:
             centroids[j] = cluster_points.mean(axis=0)
         else:
             centroids[j] = data[np.random.randint(len(data))]
-
     return centroids
 
-
 def has_converged(old_centroids, new_centroids, tolerance=1e-4):
-    """Check if centroids have stopped moving."""
     shift = np.sum((old_centroids - new_centroids) ** 2)
     return shift < tolerance
 
-
 def kmeans(data, k, norm=2, max_iters=100, tolerance=1e-4, seed=None):
-    """
-    Full K-Means clustering implementation.
-
-    Parameters:
-    - data: (n_samples, n_features) array
-    - k: number of clusters
-    - norm: distance metric (2=Euclidean, 1=Manhattan)
-    - max_iters: maximum iterations
-    - tolerance: convergence threshold
-    - seed: random seed
-
-    Returns:
-    - labels: cluster assignments
-    - centroids: final centroid positions
-    - iterations: number of iterations
-    """
     if seed is not None:
         np.random.seed(seed)
-
     n_samples = data.shape[0]
     random_indices = np.random.choice(n_samples, size=k, replace=False)
     centroids = data[random_indices].copy()
-
     for iteration in range(max_iters):
         labels = assign_clusters(data, centroids, norm)
         new_centroids = update_centroids(data, labels, k)
-
         if has_converged(centroids, new_centroids, tolerance):
             return labels, new_centroids, iteration + 1
-
         centroids = new_centroids
-
     return labels, centroids, max_iters
 
-
 def kmeans_best_of_n(data, k, n_runs=10, **kwargs):
-    """Run K-Means multiple times and return best result."""
-    best_labels = None
-    best_centroids = None
-    best_wcss = float('inf')
-
+    best_labels, best_centroids, best_wcss = None, None, float('inf')
     for run in range(n_runs):
         labels, centroids, _ = kmeans(data, k, seed=run, **kwargs)
-
-        wcss = 0
-        for j in range(k):
-            cluster_points = data[labels == j]
-            if len(cluster_points) > 0:
-                wcss += np.sum((cluster_points - centroids[j]) ** 2)
-
+        wcss = sum(np.sum((data[labels == j] - centroids[j]) ** 2)
+                   for j in range(k) if len(data[labels == j]) > 0)
         if wcss < best_wcss:
-            best_wcss = wcss
-            best_labels = labels
-            best_centroids = centroids
-
+            best_wcss, best_labels, best_centroids = wcss, labels, centroids
     return best_labels, best_centroids, best_wcss
 ```
 
-</details>
-
-<details>
-<summary>Spectral Clustering Implementation (click to expand)</summary>
+### Spectral Clustering Implementation
 
 ```python
 import numpy as np
 
 def compute_laplacian(adjacency_matrix):
-    """Compute graph Laplacian L = D - A."""
     degrees = np.sum(adjacency_matrix, axis=1)
-    degree_matrix = np.diag(degrees)
-    return degree_matrix - adjacency_matrix
-
+    return np.diag(degrees) - adjacency_matrix
 
 def spectral_clustering(adjacency_matrix, k):
-    """
-    Spectral clustering on a graph.
-
-    Parameters:
-    - adjacency_matrix: n x n symmetric matrix
-    - k: number of clusters
-
-    Returns:
-    - labels: cluster assignment for each node
-    """
-    # Compute Laplacian
     laplacian = compute_laplacian(adjacency_matrix)
-
-    # Get k smallest eigenvectors
     eigenvalues, eigenvectors = np.linalg.eigh(laplacian)
     embedding = eigenvectors[:, :k]
-
-    # Normalize rows
     row_norms = np.linalg.norm(embedding, axis=1, keepdims=True)
     row_norms[row_norms == 0] = 1
     embedding_normalized = embedding / row_norms
-
-    # Cluster the embedding
     labels, _, _ = kmeans(embedding_normalized, k)
-
     return labels
 
-
 def load_blog_network(nodes_path, edges_path):
-    """Load political blogs network from files."""
-    nodes = {}
-    labels = []
-
+    nodes, labels = {}, []
     with open(nodes_path, 'r') as f:
         for line in f:
             parts = line.strip().split('\t')
-            node_id = int(parts[0])
-            label = int(parts[2])
+            node_id, label = int(parts[0]), int(parts[2])
             nodes[node_id] = len(labels)
             labels.append(label)
-
     n = len(labels)
     adjacency = np.zeros((n, n))
-
     with open(edges_path, 'r') as f:
         for line in f:
             parts = line.strip().split('\t')
             n1, n2 = int(parts[0]), int(parts[1])
             if n1 in nodes and n2 in nodes:
                 i, j = nodes[n1], nodes[n2]
-                adjacency[i, j] = 1
-                adjacency[j, i] = 1
-
+                adjacency[i, j] = adjacency[j, i] = 1
     return adjacency, np.array(labels)
 ```
 
-</details>
-
-<details>
-<summary>Image Compression (click to expand)</summary>
+### Image Compression
 
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 
 def compress_image(image_path, k, norm=2):
-    """
-    Compress image to k colors using K-Means.
-
-    Returns compressed image and the k colors used.
-    """
     img = plt.imread(image_path)
     height, width, channels = img.shape
-
     pixels = img.reshape(-1, 3)
     if pixels.max() > 1:
         pixels = pixels / 255.0
-
     labels, centroids, _ = kmeans(pixels, k, norm=norm)
-    compressed_pixels = centroids[labels]
-    compressed = compressed_pixels.reshape(height, width, channels)
-
+    compressed = centroids[labels].reshape(height, width, channels)
     return compressed, centroids
 
-
 def save_compressed(image_path, output_path, k, norm=2):
-    """Compress and save an image."""
     compressed, _ = compress_image(image_path, k, norm)
     plt.imsave(output_path, compressed)
 ```
-
-</details>

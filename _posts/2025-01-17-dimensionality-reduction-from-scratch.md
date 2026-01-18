@@ -519,8 +519,7 @@ The algorithms in this post are based on foundational papers in machine learning
 
 ## Appendix: Complete Implementations
 
-<details>
-<summary>PCA Implementation (click to expand)</summary>
+### PCA Implementation
 
 ```python
 import numpy as np
@@ -528,48 +527,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def perform_pca(X, n_components=2):
-    """
-    Perform PCA from scratch.
-
-    Parameters:
-    -----------
-    X : array-like, shape (n_samples, n_features)
-        The data matrix
-    n_components : int
-        Number of principal components to return
-
-    Returns:
-    --------
-    X_pca : array, shape (n_samples, n_components)
-        Projected data
-    eigenvalues : array
-        All eigenvalues (sorted descending)
-    eigenvectors : array
-        All eigenvectors (columns, sorted by eigenvalue)
-    """
     # Center the data
     X_centered = X - np.mean(X, axis=0)
-
     # Compute covariance matrix
     cov_matrix = np.cov(X_centered, rowvar=False)
-
     # Eigendecomposition
     eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
-
     # Sort by eigenvalue descending
     sorted_indices = np.argsort(eigenvalues)[::-1]
     eigenvalues = eigenvalues[sorted_indices]
     eigenvectors = eigenvectors[:, sorted_indices]
-
     # Project onto top components
     principal_components = eigenvectors[:, :n_components]
     X_pca = np.dot(X_centered, principal_components)
-
     return X_pca, eigenvalues, eigenvectors
 
-
 def plot_pca_results(X_pca, labels, title="PCA Results"):
-    """Plot 2D PCA results with labels."""
     plt.figure(figsize=(10, 8))
     for i, label in enumerate(labels):
         plt.scatter(X_pca[i, 0], X_pca[i, 1])
@@ -581,16 +554,11 @@ def plot_pca_results(X_pca, labels, title="PCA Results"):
     plt.grid(True)
     plt.show()
 
-
 def explained_variance_ratio(eigenvalues):
-    """Compute proportion of variance explained by each PC."""
     return eigenvalues / np.sum(eigenvalues)
 ```
 
-</details>
-
-<details>
-<summary>ISOMAP Implementation (click to expand)</summary>
+### ISOMAP Implementation
 
 ```python
 import numpy as np
@@ -598,68 +566,33 @@ from scipy.spatial.distance import cdist
 from scipy.sparse.csgraph import shortest_path
 
 def isomap(X, epsilon=20, n_components=2):
-    """
-    ISOMAP dimensionality reduction.
-
-    Parameters:
-    -----------
-    X : array-like, shape (n_samples, n_features)
-        The data matrix
-    epsilon : float
-        Neighborhood radius for graph construction
-    n_components : int
-        Target dimensionality
-
-    Returns:
-    --------
-    Z : array, shape (n_samples, n_components)
-        Low-dimensional embedding
-    """
     n_samples = X.shape[0]
-
-    # Step 1: Compute pairwise Euclidean distances
+    # Compute pairwise Euclidean distances
     dist_matrix = cdist(X, X, metric='euclidean')
-
-    # Step 2: Build epsilon-neighborhood graph
+    # Build epsilon-neighborhood graph
     adjacency = np.zeros_like(dist_matrix)
     adjacency[dist_matrix < epsilon] = dist_matrix[dist_matrix < epsilon]
     np.fill_diagonal(adjacency, 0)
-
-    # Step 3: Compute geodesic distances via shortest paths
+    # Compute geodesic distances via shortest paths
     geodesic_dist = shortest_path(adjacency, directed=False)
-
-    # Check for disconnected components
-    if np.isinf(geodesic_dist).any():
-        print("Warning: Graph is disconnected. Consider increasing epsilon.")
-
-    # Step 4: Classical MDS
+    # Classical MDS
     D_sq = geodesic_dist ** 2
     m = D_sq.shape[0]
     H = np.eye(m) - np.ones((m, m)) / m
     G = -0.5 * np.dot(H, np.dot(D_sq, H))
-
-    # Step 5: Eigendecomposition
+    # Eigendecomposition
     eigenvalues, eigenvectors = np.linalg.eigh(G)
-
-    # Sort descending
     sorted_indices = np.argsort(eigenvalues)[::-1]
     eigenvalues = eigenvalues[sorted_indices]
     eigenvectors = eigenvectors[:, sorted_indices]
-
-    # Clip negative eigenvalues (numerical issues)
     eigenvalues = np.clip(eigenvalues, a_min=1e-10, a_max=None)
-
-    # Step 6: Compute coordinates
+    # Compute coordinates
     Z = np.dot(eigenvectors[:, :n_components],
                np.diag(np.sqrt(eigenvalues[:n_components])))
-
     return Z
 ```
 
-</details>
-
-<details>
-<summary>Eigenfaces Implementation (click to expand)</summary>
+### Eigenfaces Implementation
 
 ```python
 import numpy as np
@@ -668,30 +601,8 @@ import os
 import matplotlib.pyplot as plt
 
 def load_face_images(directory, subject_prefix, downsample=4, exclude_test=True):
-    """
-    Load face images for one subject.
-
-    Parameters:
-    -----------
-    directory : str
-        Path to image directory
-    subject_prefix : str
-        Filter for filenames (e.g., "subject01")
-    downsample : int
-        Factor to reduce image size
-    exclude_test : bool
-        Whether to exclude images with "test" in filename
-
-    Returns:
-    --------
-    images : array, shape (n_images, n_pixels)
-        Flattened grayscale images
-    height, width : int
-        Dimensions of downsampled images
-    """
     images = []
     height, width = None, None
-
     for filename in sorted(os.listdir(directory)):
         if not filename.startswith(subject_prefix):
             continue
@@ -699,7 +610,6 @@ def load_face_images(directory, subject_prefix, downsample=4, exclude_test=True)
             continue
         if exclude_test and 'test' in filename:
             continue
-
         img_path = os.path.join(directory, filename)
         with Image.open(img_path) as img:
             img = img.convert('L')
@@ -707,56 +617,20 @@ def load_face_images(directory, subject_prefix, downsample=4, exclude_test=True)
             img = img.resize((w // downsample, h // downsample))
             height, width = img.size[1], img.size[0]
             images.append(np.array(img).flatten())
-
     return np.array(images), height, width
 
-
 def compute_eigenfaces(images, n_components=6):
-    """
-    Compute eigenfaces for a set of face images.
-
-    Returns eigenfaces (as row vectors) and the mean face.
-    """
     mean_face = np.mean(images, axis=0)
     centered = images - mean_face
-
     cov_matrix = np.cov(centered, rowvar=False)
     eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
-
     sorted_indices = np.argsort(eigenvalues)[::-1]
     eigenfaces = eigenvectors[:, sorted_indices][:, :n_components].T
-
     return eigenfaces, mean_face
 
-
-def plot_eigenfaces(eigenfaces, height, width, n_cols=3):
-    """Display eigenfaces as images."""
-    n_faces = eigenfaces.shape[0]
-    n_rows = (n_faces + n_cols - 1) // n_cols
-
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(2*n_cols, 2.5*n_rows))
-    axes = axes.flatten()
-
-    for i, ax in enumerate(axes):
-        if i < n_faces:
-            ax.imshow(eigenfaces[i].reshape(height, width), cmap='gray')
-            ax.set_title(f'Eigenface {i+1}')
-        ax.axis('off')
-
-    plt.tight_layout()
-    plt.show()
-
-
 def recognize_face(test_image, eigenfaces, mean_face):
-    """
-    Compute projection residual for face recognition.
-
-    Lower residual = test image matches the eigenface space better.
-    """
     centered = test_image - mean_face
     projection = np.dot(eigenfaces.T, np.dot(eigenfaces, centered))
     residual = np.linalg.norm(centered - projection) ** 2
     return residual
 ```
-
-</details>
