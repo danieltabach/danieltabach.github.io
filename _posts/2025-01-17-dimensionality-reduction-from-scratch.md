@@ -132,6 +132,10 @@ plt.show()
 
 ### Results
 
+When you run this code, you'll see a scatter plot like this:
+
+**[Figure: PCA of European Countries]** *Each point is a country, positioned by its first two principal components. Nordic countries (Sweden, Denmark, Norway, Finland) cluster in the lower right. Mediterranean countries (Italy, Spain, Portugal) cluster on the left. England sits far from mainland Europe.*
+
 The PCA plot reveals interesting geographic patterns:
 - **Nordic countries cluster together**: Sweden, Denmark, Norway, and Finland have similar diets
 - **Mediterranean neighbors**: France, Switzerland, and Belgium group together
@@ -139,7 +143,11 @@ The PCA plot reveals interesting geographic patterns:
 
 What's interesting is that Germany and Ireland have similar diets, but Ireland and England are far apart. Geography alone doesn't explain everything. Cultural factors matter.
 
-When we flip the analysis (foods as data points, countries as features), we see:
+When we flip the analysis (foods as data points, countries as features), we get another interesting view:
+
+**[Figure: PCA of Food Items]** *Each point is a food item. Garlic and olive oil appear as outliers at the top (Mediterranean-specific). Tea, coffee, and butter cluster together on the left (breakfast staples). Frozen foods group together on the right.*
+
+Key patterns:
 - **Garlic and olive oil** stand out as outliers (Mediterranean-specific)
 - **Tea and coffee** cluster together (common breakfast items across Europe)
 - **Frozen veggies and fish** are consumed similarly across countries
@@ -253,7 +261,7 @@ def isomap(X, epsilon=20, n_components=2):
 
 **What happens if you change epsilon?** Too small, and the graph becomes disconnected (infinite geodesic distances between components). Too large, and you're basically doing PCA since everything is connected directly. You want epsilon small enough to respect the manifold curvature but large enough to keep the graph connected.
 
-Reference: [Tenenbaum, de Silva, & Langford (2000) - A Global Geometric Framework for Nonlinear Dimensionality Reduction](https://www.science.org/doi/10.1126/science.290.5500.2319)
+The original ISOMAP paper by Tenenbaum, de Silva, & Langford (2000) demonstrated this algorithm on exactly this kind of face image data, showing how it discovers the underlying pose and expression parameters from raw pixels. See the [References](#references) section for the full citation.
 
 ### Application: Face Image Manifold
 
@@ -278,10 +286,14 @@ plt.ylabel("Component 2")
 plt.show()
 ```
 
+**[Figure: ISOMAP Face Embedding]** *698 face images reduced to 2D. When you overlay actual face images on the scatter plot, you can see the manifold structure: faces looking left appear on one side, faces looking right on the other. The vertical axis often captures up/down head tilt or expression.*
+
 When you overlay actual face images on the scatter plot, you see that:
 - Faces looking left cluster on one side, faces looking right on the other
 - Faces with similar expressions are nearby
 - The embedding captures the underlying structure of head pose and expression
+
+This is the key result from the original ISOMAP paper. The algorithm discovers that the face images, despite living in 4096-dimensional pixel space, actually lie on a low-dimensional manifold parameterized by pose and expression.
 
 ### ISOMAP vs PCA
 
@@ -309,6 +321,16 @@ The eigenfaces approach treats this as dimensionality reduction followed by near
 4. **For a new face**: project it and find the nearest known face
 
 The eigenfaces themselves are eigenvectors of the covariance matrix of face images. When visualized as images, they look like ghostly faces that capture different aspects of variation (lighting, expression, facial features).
+
+Here's what the Yale Face dataset looks like. Each subject has multiple images with different expressions and lighting:
+
+![Subject 1 from Yale Face Dataset](/assets/images/posts/dimensionality-reduction/subject01-normal.gif)
+
+*Subject 1: Normal expression. The dataset includes variations like glasses, happy, sad, sleepy, surprised, wink, and different lighting directions.*
+
+![Subject 2 from Yale Face Dataset](/assets/images/posts/dimensionality-reduction/subject02-normal.gif)
+
+*Subject 2: Normal expression. Same variation types as Subject 1.*
 
 ### Implementation
 
@@ -391,13 +413,18 @@ Subject 2's test image has higher residuals overall, suggesting the eigenfaces d
 
 ### Visualizing Eigenfaces
 
-When you reshape eigenfaces back into images, you see:
+When you reshape eigenfaces back into images, you see ghostly face-like patterns:
 
+**[Figure: Top 6 Eigenfaces for Subject 1]** *Eigenface 1 looks like a blurry average face. Eigenfaces 2-3 capture lighting direction (left vs right). Eigenfaces 4-6 capture finer details like expression changes.*
+
+**[Figure: Top 6 Eigenfaces for Subject 2]** *Similar pattern: first eigenface is the "base" face, later ones capture variations. Subject 2 wears glasses in some images, so you can see the glasses pattern emerging in the eigenfaces.*
+
+What each eigenface captures:
 - **Eigenface 1**: Overall face structure, usually looks like the "average" face with lighting variation
 - **Eigenface 2-3**: Expression and lighting differences
 - **Eigenface 4-6**: Finer details, often capturing glasses, hair, or subtle expressions
 
-The first eigenface captures what's common across all images. Later eigenfaces capture what makes individual images different.
+The first eigenface captures what's common across all images. Later eigenfaces capture what makes individual images different. This is exactly what PCA does: find the directions of maximum variance, ordered by importance.
 
 ### Improving the Algorithm
 
@@ -437,6 +464,26 @@ In production systems, you'd:
 3. **Validate your parameters** (k for k-NN, epsilon for ISOMAP) on held-out data
 4. **Understand the assumptions**: PCA assumes linearity, ISOMAP assumes a smooth manifold
 5. **Consider your audience**: PCA results are hard to explain to non-technical stakeholders
+
+---
+
+## References
+
+The algorithms in this post are based on foundational papers in machine learning:
+
+**PCA (Principal Component Analysis)**
+- Pearson, K. (1901). "On lines and planes of closest fit to systems of points in space." *Philosophical Magazine*, 2(11), 559-572.
+- Hotelling, H. (1933). "Analysis of a complex of statistical variables into principal components." *Journal of Educational Psychology*, 24(6), 417-441.
+
+**ISOMAP**
+- Tenenbaum, J. B., de Silva, V., & Langford, J. C. (2000). ["A Global Geometric Framework for Nonlinear Dimensionality Reduction."](https://www.science.org/doi/10.1126/science.290.5500.2319) *Science*, 290(5500), 2319-2323.
+
+**Eigenfaces**
+- Turk, M., & Pentland, A. (1991). ["Eigenfaces for Recognition."](https://www.face-rec.org/algorithms/PCA/jcn.pdf) *Journal of Cognitive Neuroscience*, 3(1), 71-86.
+- Sirovich, L., & Kirby, M. (1987). "Low-dimensional procedure for the characterization of human faces." *Journal of the Optical Society of America A*, 4(3), 519-524.
+
+**MDS (Multidimensional Scaling)**
+- Torgerson, W. S. (1952). "Multidimensional scaling: I. Theory and method." *Psychometrika*, 17(4), 401-419.
 
 ---
 
