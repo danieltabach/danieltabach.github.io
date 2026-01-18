@@ -59,30 +59,29 @@ Why does this work? Each step either decreases the objective $J$ or leaves it un
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-
-6 points in 2D, finding k=2 clusters:
-
-| Point | X | Y |
-|-------|---|---|
-| A | 1 | 1 |
-| B | 2 | 1 |
-| C | 1 | 2 |
-| D | 8 | 8 |
-| E | 9 | 8 |
-| F | 8 | 9 |
-
-**Iteration 1:**
-- Random centroids: C1=(1,1), C2=(9,8)
-- Assign: A,B,C → C1 (closer), D,E,F → C2
-- Update: C1 = mean(A,B,C) = (1.33, 1.33), C2 = mean(D,E,F) = (8.33, 8.33)
-
-**Iteration 2:**
-- Assign: same assignments (centroids barely moved)
-- Update: same centroids
-- **Converged!**
-
-Final clusters: {A,B,C} and {D,E,F}
-
+<p>6 points in 2D, finding k=2 clusters:</p>
+<table>
+<tr><th>Point</th><th>X</th><th>Y</th></tr>
+<tr><td>A</td><td>1</td><td>1</td></tr>
+<tr><td>B</td><td>2</td><td>1</td></tr>
+<tr><td>C</td><td>1</td><td>2</td></tr>
+<tr><td>D</td><td>8</td><td>8</td></tr>
+<tr><td>E</td><td>9</td><td>8</td></tr>
+<tr><td>F</td><td>8</td><td>9</td></tr>
+</table>
+<p><strong>Iteration 1:</strong></p>
+<ul>
+<li>Random centroids: C1=(1,1), C2=(9,8)</li>
+<li>Assign: A,B,C → C1 (closer), D,E,F → C2</li>
+<li>Update: C1 = mean(A,B,C) = (1.33, 1.33), C2 = mean(D,E,F) = (8.33, 8.33)</li>
+</ul>
+<p><strong>Iteration 2:</strong></p>
+<ul>
+<li>Assign: same assignments (centroids barely moved)</li>
+<li>Update: same centroids</li>
+<li><strong>Converged!</strong></li>
+</ul>
+<p>Final clusters: {A,B,C} and {D,E,F}</p>
 </details>
 
 ### Implementation
@@ -381,44 +380,35 @@ Given a graph with $n$ nodes:
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-
-Consider 4 nodes with this connection pattern:
-
-```
-1 --- 2
+<p>Consider 4 nodes with this connection pattern:</p>
+<pre>1 --- 2
 |     |
-3 --- 4
-```
-
-**Adjacency matrix A** (who connects to whom):
-
-|   | 1 | 2 | 3 | 4 |
-|---|---|---|---|---|
-| 1 | 0 | 1 | 1 | 0 |
-| 2 | 1 | 0 | 0 | 1 |
-| 3 | 1 | 0 | 0 | 1 |
-| 4 | 0 | 1 | 1 | 0 |
-
-**Degree matrix D** (count of connections per node):
-
-|   | 1 | 2 | 3 | 4 |
-|---|---|---|---|---|
-| 1 | 2 | 0 | 0 | 0 |
-| 2 | 0 | 2 | 0 | 0 |
-| 3 | 0 | 0 | 2 | 0 |
-| 4 | 0 | 0 | 0 | 2 |
-
-**Laplacian L = D - A**:
-
-|   | 1 | 2 | 3 | 4 |
-|---|---|---|---|---|
-| 1 | 2 | -1 | -1 | 0 |
-| 2 | -1 | 2 | 0 | -1 |
-| 3 | -1 | 0 | 2 | -1 |
-| 4 | 0 | -1 | -1 | 2 |
-
-Notice: each row sums to 0. The diagonal shows the degree, off-diagonal shows negative connections.
-
+3 --- 4</pre>
+<p><strong>Adjacency matrix A</strong> (who connects to whom):</p>
+<table>
+<tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+<tr><td><strong>1</strong></td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+<tr><td><strong>2</strong></td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td><strong>3</strong></td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td><strong>4</strong></td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+</table>
+<p><strong>Degree matrix D</strong> (count of connections per node):</p>
+<table>
+<tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+<tr><td><strong>1</strong></td><td>2</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><strong>2</strong></td><td>0</td><td>2</td><td>0</td><td>0</td></tr>
+<tr><td><strong>3</strong></td><td>0</td><td>0</td><td>2</td><td>0</td></tr>
+<tr><td><strong>4</strong></td><td>0</td><td>0</td><td>0</td><td>2</td></tr>
+</table>
+<p><strong>Laplacian L = D - A</strong>:</p>
+<table>
+<tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+<tr><td><strong>1</strong></td><td>2</td><td>-1</td><td>-1</td><td>0</td></tr>
+<tr><td><strong>2</strong></td><td>-1</td><td>2</td><td>0</td><td>-1</td></tr>
+<tr><td><strong>3</strong></td><td>-1</td><td>0</td><td>2</td><td>-1</td></tr>
+<tr><td><strong>4</strong></td><td>0</td><td>-1</td><td>-1</td><td>2</td></tr>
+</table>
+<p>Notice: each row sums to 0. The diagonal shows the degree, off-diagonal shows negative connections.</p>
 </details>
 
 **Code:**
@@ -461,24 +451,21 @@ The second smallest eigenvalue is called the Fiedler value. Its eigenvector, the
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-
-Using the same 4-node graph, here are the Laplacian's eigenvectors:
-
-| Eigenvalue | Eigenvector | Interpretation |
-|------------|-------------|----------------|
-| 0 | [0.5, 0.5, 0.5, 0.5] | Constant (useless) |
-| 2 | [0.5, -0.5, -0.5, 0.5] | **Fiedler vector** |
-| 2 | [0.5, -0.5, 0.5, -0.5] | Third eigenvector |
-| 4 | [0.5, 0.5, -0.5, -0.5] | Fourth eigenvector |
-
-**The Fiedler vector** [0.5, -0.5, -0.5, 0.5] groups:
-- Nodes 1 and 4 together (positive values)
-- Nodes 2 and 3 together (negative values)
-
-This matches the graph structure: 1-4 are diagonal partners, 2-3 are diagonal partners.
-
-For k=2 clusters: take the sign of the Fiedler vector → Cluster A: {1,4}, Cluster B: {2,3}
-
+<p>Using the same 4-node graph, here are the Laplacian's eigenvectors:</p>
+<table>
+<tr><th>Eigenvalue</th><th>Eigenvector</th><th>Interpretation</th></tr>
+<tr><td>0</td><td>[0.5, 0.5, 0.5, 0.5]</td><td>Constant (useless)</td></tr>
+<tr><td>2</td><td>[0.5, -0.5, -0.5, 0.5]</td><td><strong>Fiedler vector</strong></td></tr>
+<tr><td>2</td><td>[0.5, -0.5, 0.5, -0.5]</td><td>Third eigenvector</td></tr>
+<tr><td>4</td><td>[0.5, 0.5, -0.5, -0.5]</td><td>Fourth eigenvector</td></tr>
+</table>
+<p><strong>The Fiedler vector</strong> [0.5, -0.5, -0.5, 0.5] groups:</p>
+<ul>
+<li>Nodes 1 and 4 together (positive values)</li>
+<li>Nodes 2 and 3 together (negative values)</li>
+</ul>
+<p>This matches the graph structure: 1-4 are diagonal partners, 2-3 are diagonal partners.</p>
+<p>For k=2 clusters: take the sign of the Fiedler vector → Cluster A: {1,4}, Cluster B: {2,3}</p>
 </details>
 
 For $k$ clusters, we use the $k$ smallest eigenvectors. We stack them into an $n \times k$ matrix, where each row represents a node. Then we run K-Means on these rows.

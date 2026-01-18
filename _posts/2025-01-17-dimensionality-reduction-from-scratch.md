@@ -60,39 +60,32 @@ The optimal $w$ is an **eigenvector** of the covariance matrix, and $\lambda$ (t
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-
-Say we have 4 data points with 3 features each (4×3 matrix):
-
-| Point | Height | Weight | Age |
-|-------|--------|--------|-----|
-| A | 5 | 150 | 25 |
-| B | 6 | 180 | 30 |
-| C | 5.5 | 160 | 28 |
-| D | 6.5 | 200 | 35 |
-
-**Step 1: Center the data** (subtract column means)
-
-| Point | Height | Weight | Age |
-|-------|--------|--------|-----|
-| A | -0.75 | -22.5 | -4.5 |
-| B | 0.25 | 7.5 | 0.5 |
-| C | -0.25 | -12.5 | -1.5 |
-| D | 0.75 | 27.5 | 5.5 |
-
-**Step 2: Covariance matrix** (3×3, one entry per feature pair)
-
-|  | Height | Weight | Age |
-|--|--------|--------|-----|
-| Height | 0.42 | 17.5 | 3.5 |
-| Weight | 17.5 | 758.3 | 145.8 |
-| Age | 3.5 | 145.8 | 29.2 |
-
-The diagonal shows variance of each feature. Off-diagonal shows how features co-vary.
-
-**Step 3: Eigenvectors point in directions of maximum spread**
-
-The eigenvector with the largest eigenvalue points roughly in the Weight direction (since Weight has the most variance). Projecting onto this eigenvector gives PC1.
-
+<p>Say we have 4 data points with 3 features each (4×3 matrix):</p>
+<table>
+<tr><th>Point</th><th>Height</th><th>Weight</th><th>Age</th></tr>
+<tr><td>A</td><td>5</td><td>150</td><td>25</td></tr>
+<tr><td>B</td><td>6</td><td>180</td><td>30</td></tr>
+<tr><td>C</td><td>5.5</td><td>160</td><td>28</td></tr>
+<tr><td>D</td><td>6.5</td><td>200</td><td>35</td></tr>
+</table>
+<p><strong>Step 1: Center the data</strong> (subtract column means)</p>
+<table>
+<tr><th>Point</th><th>Height</th><th>Weight</th><th>Age</th></tr>
+<tr><td>A</td><td>-0.75</td><td>-22.5</td><td>-4.5</td></tr>
+<tr><td>B</td><td>0.25</td><td>7.5</td><td>0.5</td></tr>
+<tr><td>C</td><td>-0.25</td><td>-12.5</td><td>-1.5</td></tr>
+<tr><td>D</td><td>0.75</td><td>27.5</td><td>5.5</td></tr>
+</table>
+<p><strong>Step 2: Covariance matrix</strong> (3×3, one entry per feature pair)</p>
+<table>
+<tr><th></th><th>Height</th><th>Weight</th><th>Age</th></tr>
+<tr><td><strong>Height</strong></td><td>0.42</td><td>17.5</td><td>3.5</td></tr>
+<tr><td><strong>Weight</strong></td><td>17.5</td><td>758.3</td><td>145.8</td></tr>
+<tr><td><strong>Age</strong></td><td>3.5</td><td>145.8</td><td>29.2</td></tr>
+</table>
+<p>The diagonal shows variance of each feature. Off-diagonal shows how features co-vary.</p>
+<p><strong>Step 3: Eigenvectors point in directions of maximum spread</strong></p>
+<p>The eigenvector with the largest eigenvalue points roughly in the Weight direction (since Weight has the most variance). Projecting onto this eigenvector gives PC1.</p>
 </details>
 
 ### Implementation
@@ -259,37 +252,29 @@ Multidimensional Scaling takes a distance matrix and finds low-dimensional coord
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-
-Say we have 5 points on a curved path. Euclidean distances vs geodesic distances:
-
-**Euclidean distance matrix** (straight-line):
-
-|   | A | B | C | D | E |
-|---|---|---|---|---|---|
-| A | 0 | 1 | 2 | 2 | 1 |
-| B | 1 | 0 | 1 | 2 | 2 |
-| C | 2 | 1 | 0 | 1 | 2 |
-| D | 2 | 2 | 1 | 0 | 1 |
-| E | 1 | 2 | 2 | 1 | 0 |
-
-Points A and E look close (distance=1) because they're near each other in space.
-
-**Neighborhood graph** (epsilon=1.5, only keep edges ≤ 1.5):
-
-A—B—C—D—E and A—E (the shortcut)
-
-**Geodesic distance matrix** (shortest path along graph):
-
-|   | A | B | C | D | E |
-|---|---|---|---|---|---|
-| A | 0 | 1 | 2 | 3 | 1 |
-| B | 1 | 0 | 1 | 2 | 2 |
-| C | 2 | 1 | 0 | 1 | 2 |
-| D | 3 | 2 | 1 | 0 | 1 |
-| E | 1 | 2 | 2 | 1 | 0 |
-
-Now A to D = 3 (must walk A→B→C→D), preserving the path structure.
-
+<p>Say we have 5 points on a curved path. Euclidean distances vs geodesic distances:</p>
+<p><strong>Euclidean distance matrix</strong> (straight-line):</p>
+<table>
+<tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+<tr><td><strong>A</strong></td><td>0</td><td>1</td><td>2</td><td>2</td><td>1</td></tr>
+<tr><td><strong>B</strong></td><td>1</td><td>0</td><td>1</td><td>2</td><td>2</td></tr>
+<tr><td><strong>C</strong></td><td>2</td><td>1</td><td>0</td><td>1</td><td>2</td></tr>
+<tr><td><strong>D</strong></td><td>2</td><td>2</td><td>1</td><td>0</td><td>1</td></tr>
+<tr><td><strong>E</strong></td><td>1</td><td>2</td><td>2</td><td>1</td><td>0</td></tr>
+</table>
+<p>Points A and E look close (distance=1) because they're near each other in space.</p>
+<p><strong>Neighborhood graph</strong> (epsilon=1.5, only keep edges ≤ 1.5):</p>
+<p><code>A—B—C—D—E</code> and <code>A—E</code> (the shortcut)</p>
+<p><strong>Geodesic distance matrix</strong> (shortest path along graph):</p>
+<table>
+<tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+<tr><td><strong>A</strong></td><td>0</td><td>1</td><td>2</td><td>3</td><td>1</td></tr>
+<tr><td><strong>B</strong></td><td>1</td><td>0</td><td>1</td><td>2</td><td>2</td></tr>
+<tr><td><strong>C</strong></td><td>2</td><td>1</td><td>0</td><td>1</td><td>2</td></tr>
+<tr><td><strong>D</strong></td><td>3</td><td>2</td><td>1</td><td>0</td><td>1</td></tr>
+<tr><td><strong>E</strong></td><td>1</td><td>2</td><td>2</td><td>1</td><td>0</td></tr>
+</table>
+<p>Now A to D = 3 (must walk A→B→C→D), preserving the path structure.</p>
 </details>
 
 ### Implementation
