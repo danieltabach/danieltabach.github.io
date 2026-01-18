@@ -365,10 +365,10 @@ Here's where it gets real. Youden's Index assumes false positives and false nega
 In healthcare, you'd rather have more false positives than miss a single cancer case. You want high recall, even at the cost of precision.
 
 **Fraud detection example:**
-- **False Positive** (legitimate transaction blocked): Annoyed customer, maybe lost sale ($5-50)
-- **False Negative** (fraud goes through): Direct financial loss, chargebacks, fees ($500-5000)
+- **False Positive** (legitimate transaction blocked): Annoyed customer, maybe lost sale (5-50 dollars)
+- **False Negative** (fraud goes through): Direct financial loss, chargebacks, fees (500-5000 dollars)
 
-The costs depend on your business. A $10 false positive and a $500 false negative require very different thresholds.
+The costs depend on your business. A 10-dollar false positive and a 500-dollar false negative require very different thresholds.
 
 ![Threshold Comparison](/assets/images/posts/logistic-regression/threshold-comparison.png)
 *Left: Classification metrics at different thresholds. Right: Business cost varies dramatically based on threshold choice.*
@@ -381,7 +381,7 @@ Let's find the threshold that minimizes total business cost, not just maximizes 
 
 ```r
 # Define your costs
-# Example: FP costs $1 (deny good customer), FN costs $5 (approve bad customer who defaults)
+# Example: FP costs 1 (deny good customer), FN costs 5 (approve bad customer who defaults)
 FP_Cost <- 1
 FN_Cost <- 5
 
@@ -438,10 +438,10 @@ Different business problems have different cost structures:
 
 | Scenario | FP Cost | FN Cost | Optimal Threshold |
 |----------|---------|---------|-------------------|
-| Equal costs | $1 | $1 | ~0.50 (balanced) |
-| Fraud detection | $1 | $10 | Lower (~0.30) |
-| Spam filter | $10 | $1 | Higher (~0.70) |
-| Medical screening | $1 | $100 | Very low (~0.10) |
+| Equal costs | 1 | 1 | ~0.50 (balanced) |
+| Fraud detection | 1 | 10 | Lower (~0.30) |
+| Spam filter | 10 | 1 | Higher (~0.70) |
+| Medical screening | 1 | 100 | Very low (~0.10) |
 
 ---
 
