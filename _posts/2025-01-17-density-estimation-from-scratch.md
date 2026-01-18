@@ -1092,3 +1092,7 @@ def select_n_components(X, max_components=10):
 
     return best_bic, best_aic, bics, aics
 ```
+
+---
+
+*PS: This work was completed at Georgia Tech. The original submission files can be provided upon request to validate that this work is entirely my own.*

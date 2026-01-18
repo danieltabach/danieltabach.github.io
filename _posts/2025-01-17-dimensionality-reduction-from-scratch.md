@@ -691,3 +691,7 @@ def recognize_face(test_image, eigenfaces, mean_face):
     residual = np.linalg.norm(centered - projection) ** 2
     return residual
 ```
+
+---
+
+*PS: This work was completed at Georgia Tech. The original submission files can be provided upon request to validate that this work is entirely my own.*

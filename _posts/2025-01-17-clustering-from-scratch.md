@@ -731,3 +731,7 @@ def save_compressed(image_path, output_path, k, norm=2):
     compressed, _ = compress_image(image_path, k, norm)
     plt.imsave(output_path, compressed)
 ```
+
+---
+
+*PS: This work was completed at Georgia Tech. The original submission files can be provided upon request to validate that this work is entirely my own.*
