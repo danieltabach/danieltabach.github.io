@@ -28,6 +28,8 @@ We'll use real datasets: food consumption patterns across European countries, a 
 
 Obviously in practice you'd use sklearn and do this in minutes, but understanding the underlying math gives you intuition for when each method works and when it fails.
 
+**Just want the code?** Skip to the [Appendix](#appendix-complete-implementations) for copy-paste ready implementations.
+
 ---
 
 ## Part 1: PCA from Scratch
@@ -518,7 +520,7 @@ The algorithms in this post are based on foundational papers in machine learning
 ## Appendix: Complete Implementations
 
 <details>
-<summary><strong>Complete PCA Implementation</strong></summary>
+<summary>PCA Implementation (click to expand)</summary>
 
 ```python
 import numpy as np
@@ -588,7 +590,7 @@ def explained_variance_ratio(eigenvalues):
 </details>
 
 <details>
-<summary><strong>Complete ISOMAP Implementation</strong></summary>
+<summary>ISOMAP Implementation (click to expand)</summary>
 
 ```python
 import numpy as np
@@ -657,7 +659,7 @@ def isomap(X, epsilon=20, n_components=2):
 </details>
 
 <details>
-<summary><strong>Complete Eigenfaces Implementation</strong></summary>
+<summary>Eigenfaces Implementation (click to expand)</summary>
 
 ```python
 import numpy as np

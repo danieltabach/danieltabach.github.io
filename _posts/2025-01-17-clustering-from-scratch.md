@@ -25,7 +25,9 @@ In this tutorial, we build two clustering algorithms from scratch:
 
 We will apply K-Means to image compression (reducing millions of colors to just a few) and Spectral Clustering to network analysis (finding communities in a graph of political blogs).
 
-All code is in NumPy. Obviously in practice you should pull Sklearn and do this in minutes, but this is a basic implementation of the algorithms underneath the packages. 
+All code is in NumPy. Obviously in practice you should pull Sklearn and do this in minutes, but this is a basic implementation of the algorithms underneath the packages.
+
+**Just want the code?** Skip to the [Appendix](#appendix-complete-implementations) for copy-paste ready implementations.
 
 ---
 
@@ -543,7 +545,7 @@ Most misclassifications occur at the boundary where a blog has roughly equal lin
 ## Appendix: Complete Implementations
 
 <details>
-<summary><strong>K-Means Implementation</strong></summary>
+<summary>K-Means Implementation (click to expand)</summary>
 
 ```python
 import numpy as np
@@ -641,7 +643,7 @@ def kmeans_best_of_n(data, k, n_runs=10, **kwargs):
 </details>
 
 <details>
-<summary><strong>Spectral Clustering Implementation</strong></summary>
+<summary>Spectral Clustering Implementation (click to expand)</summary>
 
 ```python
 import numpy as np
@@ -713,7 +715,7 @@ def load_blog_network(nodes_path, edges_path):
 </details>
 
 <details>
-<summary><strong>Image Compression</strong></summary>
+<summary>Image Compression (click to expand)</summary>
 
 ```python
 import numpy as np
