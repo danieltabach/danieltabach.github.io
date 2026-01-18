@@ -164,29 +164,45 @@ Sometimes your data has multiple clusters or modes. A single Gaussian can't capt
 
 A GMM with $K$ components has:
 
-$$p(x) = \sum_{k=1}^{K} \pi_k \mathcal{N}(x | \mu_k, \Sigma_k)$$
+$$p(x) = \sum_{k=1}^{K} \pi_k \cdot \mathcal{N}(x \mid \mu_k, \Sigma_k)$$
 
 Where:
-- $\pi_k$ is the mixing weight (probability of choosing component $k$), with $\sum_k \pi_k = 1$
-- $\mu_k$ is the mean of component $k$
-- $\Sigma_k$ is the covariance matrix of component $k$
-- $\mathcal{N}(x | \mu, \Sigma)$ is the multivariate Gaussian density
+- $\pi_k$ is the **mixing weight** for component $k$. This is the probability that a randomly chosen point came from component $k$. All weights must sum to 1: $\sum_k \pi_k = 1$
+- $\mu_k$ is the **mean** (center) of component $k$
+- $\Sigma_k$ is the **covariance matrix** of component $k$, which controls the shape and orientation of the Gaussian
+- $\mathcal{N}(x \mid \mu, \Sigma)$ is the **multivariate Gaussian density function**, which gives the probability density of observing $x$ given that it came from a Gaussian with mean $\mu$ and covariance $\Sigma$
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-<p>Say we have K=2 components in 1D:</p>
+<p><strong>Setup:</strong> We have a GMM with K=2 components in 1D. Think of this as modeling data that comes from two different sources (like heights of men and women mixed together).</p>
+
 <table>
-<tr><th>Component</th><th>Weight π</th><th>Mean μ</th><th>Variance σ²</th></tr>
-<tr><td>1</td><td>0.6</td><td>0</td><td>1</td></tr>
-<tr><td>2</td><td>0.4</td><td>5</td><td>2</td></tr>
+<tr><th>Component</th><th>Weight π</th><th>Mean μ</th><th>Variance σ²</th><th>Interpretation</th></tr>
+<tr><td>1</td><td>0.6</td><td>0</td><td>1</td><td>60% of data, centered at 0</td></tr>
+<tr><td>2</td><td>0.4</td><td>5</td><td>2</td><td>40% of data, centered at 5</td></tr>
 </table>
-<p>The density at x = 2:</p>
+
+<p><strong>Question:</strong> What's the probability density at x = 2?</p>
+
+<p><strong>Step 1: Compute each component's contribution.</strong></p>
+<p>For each component, we compute: (mixing weight) × (Gaussian density at x)</p>
+
+<p>Component 1 contribution:</p>
 <ul>
-<li>Component 1: 0.6 × N(2 | 0, 1) = 0.6 × 0.054 = 0.032</li>
-<li>Component 2: 0.4 × N(2 | 5, 2) = 0.4 × 0.065 = 0.026</li>
-<li>Total: 0.032 + 0.026 = 0.058</li>
+<li>Gaussian density at x=2 with μ=0, σ²=1: $\mathcal{N}(2 \mid 0, 1) = \frac{1}{\sqrt{2\pi}} e^{-(2-0)^2/2} = 0.054$</li>
+<li>Weighted: π₁ × density = 0.6 × 0.054 = <strong>0.032</strong></li>
 </ul>
-<p>Point x=2 is somewhat likely under both components, but slightly more likely under component 1.</p>
+
+<p>Component 2 contribution:</p>
+<ul>
+<li>Gaussian density at x=2 with μ=5, σ²=2: $\mathcal{N}(2 \mid 5, 2) = \frac{1}{\sqrt{4\pi}} e^{-(2-5)^2/4} = 0.030$</li>
+<li>Weighted: π₂ × density = 0.4 × 0.030 = <strong>0.012</strong></li>
+</ul>
+
+<p><strong>Step 2: Sum all contributions.</strong></p>
+<p>Total density: p(x=2) = 0.032 + 0.012 = <strong>0.044</strong></p>
+
+<p><strong>Interpretation:</strong> Even though x=2 is closer to component 1's mean (distance of 2) than component 2's mean (distance of 3), both components contribute to the density. Component 1 contributes more because it's both closer AND more common (weight 0.6 vs 0.4).</p>
 </details>
 
 ### Why MLE Doesn't Work Directly
@@ -195,11 +211,11 @@ For a single Gaussian, maximum likelihood estimation is straightforward. You tak
 
 For GMMs, the likelihood is:
 
-$$L(\theta) = \prod_{i=1}^{n} \sum_{k=1}^{K} \pi_k \mathcal{N}(x_i | \mu_k, \Sigma_k)$$
+$$L(\theta) = \prod_{i=1}^{n} \sum_{k=1}^{K} \pi_k \cdot \mathcal{N}(x_i \mid \mu_k, \Sigma_k)$$
 
 Taking the log:
 
-$$\log L(\theta) = \sum_{i=1}^{n} \log \sum_{k=1}^{K} \pi_k \mathcal{N}(x_i | \mu_k, \Sigma_k)$$
+$$\log L(\theta) = \sum_{i=1}^{n} \log \left[ \sum_{k=1}^{K} \pi_k \cdot \mathcal{N}(x_i \mid \mu_k, \Sigma_k) \right]$$
 
 The problem: that **log of a sum** doesn't simplify nicely. We can't separate terms and solve for each parameter independently. The sum is inside the log.
 
@@ -223,38 +239,132 @@ Repeat until convergence.
 
 Using Bayes' rule, the responsibility $\tau_k^i$ (probability that point $i$ belongs to component $k$) is:
 
-$$\tau_k^i = \frac{\pi_k \mathcal{N}(x_i | \mu_k, \Sigma_k)}{\sum_{j=1}^{K} \pi_j \mathcal{N}(x_i | \mu_j, \Sigma_j)}$$
+$$\tau_k^i = \frac{\pi_k \cdot \mathcal{N}(x_i \mid \mu_k, \Sigma_k)}{\sum_{j=1}^{K} \pi_j \cdot \mathcal{N}(x_i \mid \mu_j, \Sigma_j)}$$
 
-**Plain English:** The numerator is "how likely is this point under component $k$, weighted by how common component $k$ is." The denominator normalizes so responsibilities sum to 1 across components.
+Let's break this formula down piece by piece:
+
+**The numerator** $\pi_k \cdot \mathcal{N}(x_i \mid \mu_k, \Sigma_k)$ asks: "What's the probability that this point came from component $k$?"
+
+- $\pi_k$ is how common component $k$ is overall (its mixing weight)
+- $\mathcal{N}(x_i \mid \mu_k, \Sigma_k)$ is how well point $x_i$ fits component $k$'s Gaussian distribution
+- Multiplying them gives: "probability of picking component $k$" × "probability of seeing this point given component $k$"
+
+**The denominator** $\sum_{j=1}^{K} \pi_j \cdot \mathcal{N}(x_i \mid \mu_j, \Sigma_j)$ is the total probability of observing $x_i$ under the entire mixture model. We sum over all $K$ components.
+
+**The ratio** normalizes everything so that the responsibilities for point $i$ sum to 1 across all components: $\sum_{k=1}^{K} \tau_k^i = 1$.
+
+This is just Bayes' rule. We're computing: $P(\text{component } k \mid \text{point } x_i)$.
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-<p>Using the same 2-component GMM from before, let's compute responsibilities for x = 2:</p>
+<p><strong>Setup:</strong> We have a 2-component GMM with these parameters:</p>
 <table>
-<tr><th>Component</th><th>π × N(x|μ,σ²)</th><th>Responsibility τ</th></tr>
-<tr><td>1</td><td>0.6 × 0.054 = 0.032</td><td>0.032 / 0.058 = 0.55</td></tr>
-<tr><td>2</td><td>0.4 × 0.065 = 0.026</td><td>0.026 / 0.058 = 0.45</td></tr>
+<tr><th>Component</th><th>Weight π</th><th>Mean μ</th><th>Variance σ²</th></tr>
+<tr><td>1</td><td>0.6</td><td>0</td><td>1</td></tr>
+<tr><td>2</td><td>0.4</td><td>5</td><td>2</td></tr>
 </table>
-<p>Point x=2 has 55% responsibility to component 1 and 45% to component 2. It's genuinely ambiguous which component generated it.</p>
+<p><strong>Where do these numbers come from?</strong> We set them up for this example. Component 1 is centered at 0 and accounts for 60% of the data (π₁ = 0.6). Component 2 is centered at 5 and accounts for 40% (π₂ = 0.4).</p>
+
+<p><strong>Question:</strong> For a new point x = 2, what's the probability it came from each component?</p>
+
+<p><strong>Step 1: Compute the Gaussian density for each component.</strong></p>
+<p>The 1D Gaussian formula is: $\mathcal{N}(x \mid \mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$</p>
+
+<p>For component 1 (μ₁ = 0, σ₁² = 1):</p>
+<ul>
+<li>Distance from mean: (x - μ₁)² = (2 - 0)² = 4</li>
+<li>Exponent: -4 / (2 × 1) = -2</li>
+<li>Density: $\frac{1}{\sqrt{2\pi}} e^{-2} = 0.399 × 0.135 = 0.054$</li>
+</ul>
+
+<p>For component 2 (μ₂ = 5, σ₂² = 2):</p>
+<ul>
+<li>Distance from mean: (x - μ₂)² = (2 - 5)² = 9</li>
+<li>Exponent: -9 / (2 × 2) = -2.25</li>
+<li>Density: $\frac{1}{\sqrt{4\pi}} e^{-2.25} = 0.282 × 0.105 = 0.030$</li>
+</ul>
+
+<p><strong>Step 2: Multiply each density by its mixing weight.</strong></p>
+<ul>
+<li>Component 1: π₁ × N(2|0,1) = 0.6 × 0.054 = 0.032</li>
+<li>Component 2: π₂ × N(2|5,2) = 0.4 × 0.030 = 0.012</li>
+</ul>
+
+<p><strong>Step 3: Compute the denominator (sum over all components).</strong></p>
+<p>Total = 0.032 + 0.012 = 0.044</p>
+
+<p><strong>Step 4: Divide to get responsibilities.</strong></p>
+<table>
+<tr><th>Component</th><th>Numerator (π × N)</th><th>Responsibility τ</th></tr>
+<tr><td>1</td><td>0.032</td><td>0.032 / 0.044 = <strong>0.73</strong></td></tr>
+<tr><td>2</td><td>0.012</td><td>0.012 / 0.044 = <strong>0.27</strong></td></tr>
+</table>
+
+<p><strong>Interpretation:</strong> Point x = 2 has 73% responsibility to component 1 and 27% to component 2. This makes sense: x = 2 is closer to component 1's mean (0) than to component 2's mean (5), and component 1 is more common overall (60% vs 40%).</p>
+
+<p>Notice the responsibilities sum to 1: 0.73 + 0.27 = 1.0 ✓</p>
 </details>
 
 ### The M-Step Updates
 
-Given responsibilities, the parameter updates are:
+Given responsibilities from the E-step, we now update all parameters. The key insight: these are just weighted versions of the formulas you already know for mean and variance, where each point is weighted by how much it "belongs" to that component.
 
-**Effective count for component $k$:**
+**Step 1: Effective count for component $k$**
+
 $$N_k = \sum_{i=1}^{n} \tau_k^i$$
 
-**Updated weights:**
+This sums all responsibilities for component $k$ across all $n$ data points. If we have 100 points and component 1 has average responsibility 0.6 per point, then $N_1 \approx 60$. This tells us "how many points effectively belong to this component."
+
+**Step 2: Updated mixing weights**
+
 $$\pi_k = \frac{N_k}{n}$$
 
-**Updated means:**
-$$\mu_k = \frac{1}{N_k} \sum_{i=1}^{n} \tau_k^i x_i$$
+The new weight for component $k$ is simply what fraction of the data (in terms of responsibility) belongs to it. If $N_k = 60$ out of $n = 100$ points, then $\pi_k = 0.6$.
 
-**Updated covariances:**
+**Step 3: Updated means**
+
+$$\mu_k = \frac{1}{N_k} \sum_{i=1}^{n} \tau_k^i \cdot x_i$$
+
+This is a weighted average of all data points, where the weight for point $i$ is its responsibility $\tau_k^i$. Points that strongly belong to component $k$ (high $\tau_k^i$) pull the mean toward them. Points that barely belong (low $\tau_k^i$) have little influence.
+
+**Step 4: Updated covariances**
+
 $$\Sigma_k = \frac{1}{N_k} \sum_{i=1}^{n} \tau_k^i (x_i - \mu_k)(x_i - \mu_k)^T$$
 
-These are just weighted versions of the standard mean and covariance formulas, where each point is weighted by its responsibility to that component.
+Same idea: weighted average of squared deviations from the mean. The $(x_i - \mu_k)(x_i - \mu_k)^T$ term computes the outer product (giving a matrix), and we weight each by responsibility.
+
+<details>
+<summary><strong>See it with a tiny example</strong></summary>
+<p><strong>Setup:</strong> We have 4 data points in 1D and K=2 components. After running the E-step, here are the responsibilities:</p>
+
+<table>
+<tr><th>Point $x_i$</th><th>Value</th><th>τ₁ (component 1)</th><th>τ₂ (component 2)</th></tr>
+<tr><td>1</td><td>1.0</td><td>0.9</td><td>0.1</td></tr>
+<tr><td>2</td><td>2.0</td><td>0.8</td><td>0.2</td></tr>
+<tr><td>3</td><td>8.0</td><td>0.2</td><td>0.8</td></tr>
+<tr><td>4</td><td>9.0</td><td>0.1</td><td>0.9</td></tr>
+</table>
+
+<p><strong>Step 1: Compute effective counts.</strong></p>
+<ul>
+<li>$N_1 = 0.9 + 0.8 + 0.2 + 0.1 = 2.0$</li>
+<li>$N_2 = 0.1 + 0.2 + 0.8 + 0.9 = 2.0$</li>
+</ul>
+
+<p><strong>Step 2: Update weights.</strong></p>
+<ul>
+<li>$\pi_1 = 2.0 / 4 = 0.5$</li>
+<li>$\pi_2 = 2.0 / 4 = 0.5$</li>
+</ul>
+
+<p><strong>Step 3: Update means.</strong></p>
+<ul>
+<li>$\mu_1 = \frac{1}{2.0}(0.9×1 + 0.8×2 + 0.2×8 + 0.1×9) = \frac{4.9}{2.0} = 2.45$</li>
+<li>$\mu_2 = \frac{1}{2.0}(0.1×1 + 0.2×2 + 0.8×8 + 0.9×9) = \frac{15.0}{2.0} = 7.50$</li>
+</ul>
+
+<p><strong>Interpretation:</strong> Component 1's mean (2.45) is pulled toward points 1 and 2 (which have high responsibility to it). Component 2's mean (7.50) is pulled toward points 3 and 4.</p>
+</details>
 
 ### Implementation
 
@@ -553,13 +663,32 @@ BIC penalizes complexity more heavily and is generally preferred for model selec
 
 ### The Problem
 
-We have images of handwritten digits (2 and 6 from MNIST). Can we classify them using GMM as a generative model?
+We have 1,990 images of handwritten digits from MNIST: specifically, the digits 2 and 6. Can we classify them using GMM as a generative model, without ever telling the algorithm what the true labels are?
 
-The approach:
-1. Reduce dimensionality with PCA (784 pixels → 4 components)
-2. Fit a 2-component GMM
-3. Assign each digit to the component with higher responsibility
-4. Map components to digit labels
+This is an example of **unsupervised learning**: we'll fit a model to the data and see if it naturally discovers the two digit classes.
+
+### Why We Need PCA First
+
+Each image is 28×28 = 784 pixels. That's 784 dimensions. Why is this a problem for GMM?
+
+1. **Too many parameters**: A full covariance matrix in 784D has $\frac{784 \times 785}{2} = 307,720$ parameters per component. With 2 components and only 1,990 data points, we'd be drastically overfitting.
+
+2. **Curse of dimensionality**: In high dimensions, Gaussian densities become extremely peaked. Almost all points end up with near-zero density under any Gaussian.
+
+3. **Numerical instability**: Covariance matrices become nearly singular (non-invertible) when dimensions exceed sample size.
+
+**The solution**: Use PCA to reduce 784 dimensions to just 4. These 4 principal components capture the most important patterns of variation in the digit images.
+
+<details>
+<summary><strong>What do the 4 principal components capture?</strong></summary>
+<p>PCA finds the directions of maximum variance in the data. For digit images:</p>
+<ul>
+<li><strong>PC1</strong>: Often captures overall brightness or stroke thickness</li>
+<li><strong>PC2</strong>: May capture tilt/rotation of the digit</li>
+<li><strong>PC3-4</strong>: Capture finer shape variations</li>
+</ul>
+<p>The key insight: digits 2 and 6 differ systematically along these components. A 2 has a horizontal bottom and a curved top. A 6 has a loop at the bottom. These structural differences show up as different positions in PCA space.</p>
+</details>
 
 ### Loading and Preprocessing
 
@@ -571,26 +700,37 @@ from sklearn.decomposition import PCA
 data_mat = loadmat('data.mat')
 labels_mat = loadmat('label.mat')
 
-X = data_mat['data'].T  # Shape: (1990, 784)
-y = labels_mat['trueLabel'].flatten()  # Labels: 2 or 6
+# data.mat contains pixel values: shape (784, 1990)
+# Each column is one 28x28 image, flattened
+X = data_mat['data'].T  # Transpose to (1990, 784): one row per image
+y = labels_mat['trueLabel'].flatten()  # True labels (we won't use these for training)
 
-print(f'Data shape: {X.shape}')
-print(f'Unique labels: {np.unique(y)}')
+print(f'Data shape: {X.shape}')  # (1990, 784)
+print(f'Unique labels: {np.unique(y)}')  # [2, 6]
+print(f'Number of 2s: {np.sum(y == 2)}')  # ~1000
+print(f'Number of 6s: {np.sum(y == 6)}')  # ~990
 
-# Apply PCA to reduce from 784D to 4D
+# Apply PCA: reduce from 784D to 4D
+# This keeps the 4 directions that explain the most variance
 pca = PCA(n_components=4)
 X_pca = pca.fit_transform(X)
 
-print(f'PCA shape: {X_pca.shape}')
+print(f'PCA shape: {X_pca.shape}')  # (1990, 4)
+print(f'Variance explained: {pca.explained_variance_ratio_.sum():.1%}')  # ~40-50%
 ```
+
+After PCA, each image is represented by just 4 numbers instead of 784. We lose some information, but we keep enough to distinguish 2s from 6s.
 
 ### Fitting the GMM
 
+Now we fit a 2-component GMM to the 4D PCA data. We set K=2 because we know there are two digit classes (though in practice, you might try different K values and use BIC to select).
+
 ```python
-# Run EM algorithm
+# Run EM algorithm with K=2 components
+# X_pca has shape (1990, 4): 1990 images, each represented by 4 PCA components
 pi, mu, Sigma, gamma, log_likelihoods = em_gmm(X_pca, K=2, seed=1)
 
-# Plot convergence
+# Plot convergence to verify the algorithm worked
 plt.figure(figsize=(8, 5))
 plt.plot(log_likelihoods)
 plt.xlabel('Iteration')
@@ -598,86 +738,147 @@ plt.ylabel('Log-Likelihood')
 plt.title('EM Algorithm Convergence')
 plt.show()
 
-print(f'Final weights: {pi}')
+print(f'Final mixing weights: {pi}')
 print(f'Converged in {len(log_likelihoods)} iterations')
 ```
 
-Results:
-- Weight 1: 0.51 (roughly half the data)
-- Weight 2: 0.49
+**What to expect:**
+- The log-likelihood should increase monotonically (EM guarantees this)
+- It should plateau when the algorithm has converged
+- The mixing weights should be roughly 50/50 since we have similar numbers of 2s and 6s
+
+**Results:**
+- $\pi_1 = 0.51$ (51% of data assigned to component 1)
+- $\pi_2 = 0.49$ (49% of data assigned to component 2)
 - Converged in ~18 iterations
 
 ![EM Convergence](/assets/images/posts/density-estimation/em-convergence.png)
-*Log-likelihood increases monotonically and plateaus around iteration 15. The algorithm converges quickly for this well-separated data.*
+*Log-likelihood increases monotonically and plateaus around iteration 15. The rapid convergence suggests the two digit classes are well-separated in PCA space.*
+
+<details>
+<summary><strong>What do the learned parameters mean?</strong></summary>
+<p><strong>Mixing weights π:</strong> These tell us what fraction of data belongs to each component. Getting ~50/50 makes sense because we have roughly equal numbers of 2s and 6s in the dataset.</p>
+
+<p><strong>Means μ (shape: 2×4):</strong> Each row is a 4D vector representing the "center" of one component in PCA space. These are abstract coordinates that we can map back to image space to visualize.</p>
+
+<p><strong>Covariances Σ (two 4×4 matrices):</strong> These capture how the data varies within each component. Different diagonal values mean different variances along different PCA directions. Off-diagonal values capture correlations between PCA components within each digit class.</p>
+</details>
 
 ### Visualizing the Learned Means
 
-The mean of each component, when mapped back to image space, should look like an "average" digit:
+Here's the exciting part: can we see what the GMM learned? The mean $\mu_k$ of each component is a 4D vector (in PCA space). But we can map it back to the original 784D pixel space using `pca.inverse_transform()`, then reshape it to 28×28 to see it as an image.
 
 ```python
-# Map means back to original space
-mu_original = pca.inverse_transform(mu)
+# mu has shape (2, 4): two means, each with 4 PCA components
+# inverse_transform maps from 4D PCA space back to 784D pixel space
+mu_original = pca.inverse_transform(mu)  # Shape: (2, 784)
 
-# Display as images
+# Reshape each 784D vector into a 28x28 image and display
 fig, axes = plt.subplots(1, 2, figsize=(8, 4))
 for i in range(2):
-    axes[i].imshow(mu_original[i].reshape(28, 28), cmap='gray')
-    axes[i].set_title(f'Mean Image of Cluster {i+1}')
+    # Reshape from (784,) to (28, 28) for visualization
+    mean_image = mu_original[i].reshape(28, 28)
+    axes[i].imshow(mean_image, cmap='gray')
+    axes[i].set_title(f'Mean Image of Component {i+1}')
     axes[i].axis('off')
 plt.show()
 ```
 
 ![Learned Mean Images](/assets/images/posts/density-estimation/gmm-mean-images.png)
-*Mean images of the two GMM components, mapped back to 28x28 pixel space. Left: clearly resembles a 2. Right: resembles a 6 (slightly tilted due to PCA reconstruction loss).*
+*Mean images of the two GMM components, mapped back to 28×28 pixel space. One clearly resembles a "2", the other resembles a "6". The GMM discovered the digit structure without being told the labels.*
 
-The learned means clearly resemble a 2 and a 6. The GMM has discovered the digit structure without being told the labels.
+**This is remarkable:** We never told the GMM that the data contains 2s and 6s. We just said "fit 2 components." Yet the learned means clearly resemble the actual digits. The algorithm discovered the underlying structure purely from the data.
+
+<details>
+<summary><strong>Why are the mean images slightly blurry?</strong></summary>
+<p>Two reasons:</p>
+<ol>
+<li><strong>PCA reconstruction loss:</strong> We compressed 784 dimensions to 4, then reconstructed. Some information is lost. The missing 780 dimensions contained fine details that can't be recovered.</li>
+<li><strong>Averaging effect:</strong> The mean is an "average" of all digits assigned to that component. Handwritten 2s vary in slant, size, and style. Averaging them produces a blurry composite.</li>
+</ol>
+<p>Despite the blur, the essential digit structure is clearly visible.</p>
+</details>
 
 ### Covariance Structure
 
-The 4x4 covariance matrices show how the principal components co-vary within each cluster:
+The GMM doesn't just learn means. It also learns how data varies around each mean. This is captured in the 4×4 covariance matrices, one per component.
 
 ```python
 import seaborn as sns
 
+# Sigma is a list of two 4x4 covariance matrices
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 for i in range(2):
-    sns.heatmap(Sigma[i], annot=True, fmt='.2f', ax=axes[i], cmap='RdBu_r')
-    axes[i].set_title(f'Covariance Matrix of Cluster {i+1}')
+    sns.heatmap(Sigma[i], annot=True, fmt='.2f', ax=axes[i], cmap='RdBu_r',
+                xticklabels=['PC1', 'PC2', 'PC3', 'PC4'],
+                yticklabels=['PC1', 'PC2', 'PC3', 'PC4'])
+    axes[i].set_title(f'Covariance Matrix of Component {i+1}')
 plt.tight_layout()
 plt.show()
 ```
 
 ![Covariance Heatmaps](/assets/images/posts/density-estimation/covariance-heatmaps.png)
-*4x4 covariance matrices for each component in PCA space. Different patterns reflect how digit 2 and digit 6 vary along the principal components.*
+*4×4 covariance matrices for each component in PCA space. The diagonal shows variance along each principal component. Off-diagonal shows correlations.*
 
-The covariance matrices differ between clusters, capturing that 2s and 6s vary differently across the principal components.
+<details>
+<summary><strong>How to read these matrices</strong></summary>
+<p><strong>Diagonal entries</strong> (e.g., position [0,0]) show the variance along each principal component. Larger values mean more spread in that direction.</p>
+
+<p><strong>Off-diagonal entries</strong> (e.g., position [0,1]) show correlations between components. If positive, when PC1 increases, PC2 tends to increase too. If negative, they move in opposite directions.</p>
+
+<p><strong>Why the matrices differ:</strong> Digits 2 and 6 vary in different ways. For example:</p>
+<ul>
+<li>The curvature of a "2" might vary differently than the loop of a "6"</li>
+<li>The slant of a "2" might correlate with its height differently than for a "6"</li>
+</ul>
+<p>By learning separate covariance matrices, the GMM captures these differences, leading to elliptical (not spherical) clusters that better fit the data.</p>
+</details>
 
 ### Classification Results
+
+Now we evaluate: how well did the GMM separate 2s from 6s? We assign each point to the component with higher responsibility, then compare to the true labels.
 
 ```python
 from sklearn.metrics import classification_report, confusion_matrix
 
-# Assign each point to the component with higher responsibility
-predicted_clusters = np.argmax(gamma, axis=1)
+# gamma has shape (1990, 2): responsibility of each point to each component
+# For each point, pick the component with higher responsibility
+predicted_clusters = np.argmax(gamma, axis=1)  # Shape: (1990,), values 0 or 1
 
-# Map clusters to digit labels based on majority
-# (cluster 0 might correspond to digit 6, cluster 1 to digit 2, or vice versa)
-cluster_0_labels = y[predicted_clusters == 0]
-cluster_1_labels = y[predicted_clusters == 1]
+# Problem: The GMM doesn't know which component is "2" vs "6"
+# We need to figure out the mapping by looking at majority labels
+cluster_0_labels = y[predicted_clusters == 0]  # True labels for points assigned to cluster 0
+cluster_1_labels = y[predicted_clusters == 1]  # True labels for points assigned to cluster 1
 
-# Determine mapping
+# Determine mapping based on which digit is majority in each cluster
 if np.sum(cluster_0_labels == 2) > np.sum(cluster_0_labels == 6):
+    # Cluster 0 is mostly 2s, so map cluster 0 → digit 2
     cluster_to_digit = {0: 2, 1: 6}
 else:
+    # Cluster 0 is mostly 6s, so map cluster 0 → digit 6
     cluster_to_digit = {0: 6, 1: 2}
 
+# Convert cluster assignments to digit predictions
 predicted_digits = np.array([cluster_to_digit[c] for c in predicted_clusters])
 
-# Evaluate
+# Evaluate against true labels
 print('GMM Classification Results:')
 print(confusion_matrix(y, predicted_digits))
 print(classification_report(y, predicted_digits, target_names=['Digit 2', 'Digit 6']))
 ```
+
+<details>
+<summary><strong>Understanding the confusion matrix</strong></summary>
+<p>The confusion matrix shows:</p>
+<table>
+<tr><th></th><th>Predicted 2</th><th>Predicted 6</th></tr>
+<tr><td>Actual 2</td><td>~940 (correct)</td><td>~60 (wrong)</td></tr>
+<tr><td>Actual 6</td><td>~10 (wrong)</td><td>~980 (correct)</td></tr>
+</table>
+<p>Most 2s are correctly identified as 2s, and most 6s as 6s. The ~70 errors are digits that look ambiguous or unusual.</p>
+</details>
+
+**Results comparison with K-Means:**
 
 | Metric | GMM | K-Means |
 |--------|-----|---------|
@@ -687,7 +888,13 @@ print(classification_report(y, predicted_digits, target_names=['Digit 2', 'Digit
 | Precision (Digit 6) | 0.93 | 0.93 |
 | Recall (Digit 6) | 0.99 | 0.92 |
 
-GMM outperforms K-Means across all metrics. Why? GMM models the full covariance structure, allowing elliptical clusters. K-Means assumes spherical clusters with equal variance in all directions.
+**Why does GMM outperform K-Means?**
+
+1. **Elliptical vs spherical clusters**: K-Means assumes all clusters are spherical with equal variance. GMM learns a full covariance matrix, allowing elliptical clusters of different shapes and orientations. If 2s are spread out differently than 6s in PCA space, GMM can capture this.
+
+2. **Soft vs hard assignments**: K-Means makes hard assignments (each point belongs to exactly one cluster). GMM gives soft probabilities. Points near the decision boundary get split responsibility, which often leads to better boundary estimation.
+
+3. **Probabilistic framework**: GMM explicitly models the data-generating process. This tends to be more robust when the assumptions (Gaussian components) are approximately satisfied.
 
 ---
 
