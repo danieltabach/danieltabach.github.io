@@ -298,9 +298,17 @@ plt.ylabel("Component 2")
 plt.show()
 ```
 
-**[Figure: ISOMAP Face Embedding]** *698 face images reduced to 2D. When you overlay actual face images on the scatter plot, you can see the manifold structure: faces looking left appear on one side, faces looking right on the other. The vertical axis often captures up/down head tilt or expression.*
+![ISOMAP Embedding of Face Images](/assets/images/posts/dimensionality-reduction/isomap-faces.png)
 
-When you overlay actual face images on the scatter plot, you see that:
+*698 face images reduced to 2D using ISOMAP. Each point is a face image.*
+
+When we overlay actual face thumbnails on the embedding, the manifold structure becomes visible:
+
+![ISOMAP with Face Thumbnails](/assets/images/posts/dimensionality-reduction/isomap-faces-thumbnails.png)
+
+*Face thumbnails overlaid on the ISOMAP embedding. Faces looking in similar directions cluster together.*
+
+Looking at the embedding, you can see that:
 - Faces looking left cluster on one side, faces looking right on the other
 - Faces with similar expressions are nearby
 - The embedding captures the underlying structure of head pose and expression
@@ -336,13 +344,11 @@ The eigenfaces themselves are eigenvectors of the covariance matrix of face imag
 
 Here's what the Yale Face dataset looks like. Each subject has multiple images with different expressions and lighting:
 
-![Subject 1 from Yale Face Dataset](/assets/images/posts/dimensionality-reduction/subject01-normal.gif)
+![Subject 1 Training Images Gallery](/assets/images/posts/dimensionality-reduction/subject1-gallery.png)
 
-*Subject 1: Normal expression. The dataset includes variations like glasses, happy, sad, sleepy, surprised, wink, and different lighting directions.*
+*Subject 1 training images: Each row shows the same person with different expressions (glasses, happy, leftlight, noglasses, normal, rightlight, sad, sleepy, surprised, wink).*
 
-![Subject 2 from Yale Face Dataset](/assets/images/posts/dimensionality-reduction/subject02-normal.gif)
-
-*Subject 2: Normal expression. Same variation types as Subject 1.*
+The eigenfaces algorithm needs this variation to learn what makes a face recognizable across different conditions.
 
 ### Implementation
 
@@ -427,9 +433,19 @@ Subject 2's test image has higher residuals overall, suggesting the eigenfaces d
 
 When you reshape eigenfaces back into images, you see ghostly face-like patterns:
 
-**[Figure: Top 6 Eigenfaces for Subject 1]** *Eigenface 1 looks like a blurry average face. Eigenfaces 2-3 capture lighting direction (left vs right). Eigenfaces 4-6 capture finer details like expression changes.*
+![Top 6 Eigenfaces for Subject 1](/assets/images/posts/dimensionality-reduction/eigenfaces-subject1.png)
 
-**[Figure: Top 6 Eigenfaces for Subject 2]** *Similar pattern: first eigenface is the "base" face, later ones capture variations. Subject 2 wears glasses in some images, so you can see the glasses pattern emerging in the eigenfaces.*
+*Top 6 eigenfaces for Subject 1. Eigenface 1 captures lighting direction. Later eigenfaces capture finer expression details.*
+
+![Top 6 Eigenfaces for Subject 2](/assets/images/posts/dimensionality-reduction/eigenfaces-subject2.png)
+
+*Top 6 eigenfaces for Subject 2. Similar pattern—first eigenface is the "base" lighting, later ones capture expression and glasses variations.*
+
+The mean faces show what's "average" about each subject:
+
+![Mean Faces Comparison](/assets/images/posts/dimensionality-reduction/mean-faces.png)
+
+*Average faces computed from training images. These are subtracted before computing eigenfaces.*
 
 What each eigenface captures:
 - **Eigenface 1**: Overall face structure, usually looks like the "average" face with lighting variation
