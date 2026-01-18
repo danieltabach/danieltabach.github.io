@@ -252,29 +252,29 @@ Multidimensional Scaling takes a distance matrix and finds low-dimensional coord
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-<p>Say we have 5 points on a curved path. Euclidean distances vs geodesic distances:</p>
-<p><strong>Euclidean distance matrix</strong> (straight-line):</p>
+<p>Imagine 6 points along a U-shaped curve:</p>
+<pre>A — B — C
+        |
+        D
+        |
+F — — — E</pre>
+<p><strong>The key insight:</strong> ISOMAP assumes that if two points are close enough, Euclidean distance ≈ geodesic distance. Locally, a curved surface looks flat (like how Earth looks flat when you're standing on it).</p>
+<p><strong>Euclidean distances</strong> (straight-line through space):</p>
 <table>
-<tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
-<tr><td><strong>A</strong></td><td>0</td><td>1</td><td>2</td><td>2</td><td>1</td></tr>
-<tr><td><strong>B</strong></td><td>1</td><td>0</td><td>1</td><td>2</td><td>2</td></tr>
-<tr><td><strong>C</strong></td><td>2</td><td>1</td><td>0</td><td>1</td><td>2</td></tr>
-<tr><td><strong>D</strong></td><td>2</td><td>2</td><td>1</td><td>0</td><td>1</td></tr>
-<tr><td><strong>E</strong></td><td>1</td><td>2</td><td>2</td><td>1</td><td>0</td></tr>
+<tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th></tr>
+<tr><td><strong>A</strong></td><td>0</td><td>1</td><td>2</td><td>3</td><td>3</td><td>2</td></tr>
+<tr><td><strong>F</strong></td><td>2</td><td>2.2</td><td>2.8</td><td>2</td><td>1</td><td>0</td></tr>
 </table>
-<p>Points A and E look close (distance=1) because they're near each other in space.</p>
-<p><strong>Neighborhood graph</strong> (epsilon=1.5, only keep edges ≤ 1.5):</p>
-<p><code>A—B—C—D—E</code> and <code>A—E</code> (the shortcut)</p>
-<p><strong>Geodesic distance matrix</strong> (shortest path along graph):</p>
+<p>A to F = 2 (cutting across the U). But walking along the curve: A→B→C→D→E→F = 5.</p>
+<p><strong>How epsilon works:</strong> Setting epsilon=1.5 means "only trust Euclidean distance for points within 1.5 units." This builds a graph with edges only between nearby points:</p>
+<pre>A—B—C—D—E—F  (no shortcut A—F because 2 > 1.5)</pre>
+<p><strong>Geodesic distance matrix</strong> (shortest path through graph):</p>
 <table>
-<tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
-<tr><td><strong>A</strong></td><td>0</td><td>1</td><td>2</td><td>3</td><td>1</td></tr>
-<tr><td><strong>B</strong></td><td>1</td><td>0</td><td>1</td><td>2</td><td>2</td></tr>
-<tr><td><strong>C</strong></td><td>2</td><td>1</td><td>0</td><td>1</td><td>2</td></tr>
-<tr><td><strong>D</strong></td><td>3</td><td>2</td><td>1</td><td>0</td><td>1</td></tr>
-<tr><td><strong>E</strong></td><td>1</td><td>2</td><td>2</td><td>1</td><td>0</td></tr>
+<tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th></tr>
+<tr><td><strong>A</strong></td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr>
+<tr><td><strong>F</strong></td><td>5</td><td>4</td><td>3</td><td>2</td><td>1</td><td>0</td></tr>
 </table>
-<p>Now A to D = 3 (must walk A→B→C→D), preserving the path structure.</p>
+<p>Now A to F = 5, respecting the U-shape. The graph eliminates shortcuts by only allowing steps between trusted neighbors.</p>
 </details>
 
 ### Implementation
