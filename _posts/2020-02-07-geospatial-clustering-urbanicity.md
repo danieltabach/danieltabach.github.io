@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "Measuring Urbanicity Through Hospital Distances"
+title: "Measuring Urbanicity with Hospital Data: A Distance-Based Approach"
 date: 2020-02-07
 categories: [practical-ml]
 tags: [r, geospatial, clustering, ggmap, data-visualization]
@@ -10,27 +10,41 @@ toc_label: "Contents"
 toc_sticky: true
 ---
 
-How do you measure how "urban" an area is without census data?
+*How do you measure how "urban" an area is without census data? Here's one approach: look at where the hospitals are.*
 
-Population density seems obvious, but it can be misleading. A suburb with apartment complexes might have higher density than a small downtown. And census boundaries don't always match the reality on the ground.
+---
 
-This project explores a different approach: using hospital locations as a proxy for urbanicity. The hypothesis is simple. Hospitals are expensive to build and maintain. They only exist where there's enough population to support them. So the distance between hospitals tells us something about the population density between them.
+## Introduction
+
+If you ask someone whether New York City is "urban," they'll say yes without hesitation. But what about Orlando? Kansas City? Rochester? As a percentage, how urban are these places?
+
+There's no single right answer. "Urbanicity" is fuzzy. Census definitions exist, but they're based on administrative boundaries that don't always match reality. Population density helps, but a suburban apartment complex might have higher density than a small downtown.
+
+This project explores a different proxy: **hospital locations**.
+
+The hypothesis is simple. Hospitals are expensive to build and maintain. They only exist where there's enough population to support them. So the distance between hospitals tells us something about the population density between them.
+
+**What we'll build:**
+- A distance matrix between all hospitals in the US
+- A classification scheme based on hospital proximity
+- An improved method using k-nearest neighbors
+- Maps comparing the two approaches
 
 ---
 
 ## The Hypothesis
 
-If two hospitals are 30 miles apart, we can infer there isn't enough population between them to justify building another. If they're 300 meters apart, we're probably in a dense urban core.
+If two hospitals are 30 miles apart, we can infer there isn't enough population between them to justify building another hospital. If they're 300 meters apart, we're probably in a dense urban core.
 
-By measuring the distances between hospitals and clustering them, we might be able to create a "urbanicity score" that reflects reality better than arbitrary administrative boundaries.
+By measuring the distances between hospitals and clustering them, we might be able to create an "urbanicity score" that reflects reality better than arbitrary administrative boundaries.
 
-Let's test it.
+This won't be perfect. But it might be useful.
 
 ---
 
 ## The Data
 
-The [HIFLD Open Data portal](https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals) provides a comprehensive dataset of US hospitals with latitude/longitude coordinates, bed counts, and status (open/closed).
+Hospital location data is available from the [HIFLD Open Data portal](https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals). The dataset includes over 7,000 hospitals with latitude/longitude coordinates, bed counts, facility type, and operational status.
 
 ```r
 library(tidyverse)
@@ -39,22 +53,33 @@ library(geosphere)  # For distance calculations
 library(sp)         # For spatial data handling
 
 # Load hospital data
-Hospitals <- read_csv("Hospitals.csv")
+hospitals <- read.csv("hospitals.csv")
 
-# Quick look: 7,581 hospitals with coordinates
-head(Hospitals[, c("NAME", "ADDRESS", "X", "Y", "BEDS", "STATUS")])
+# Filter to open hospitals with valid coordinates
+hospitals <- hospitals %>%
+  filter(STATUS == "OPEN") %>%
+  filter(!is.na(X) & !is.na(Y)) %>%
+  mutate(Longitude = X, Latitude = Y)
+
+# Handle beds column (some have -999 as NA placeholder)
+hospitals$BEDS[hospitals$BEDS < 0] <- NA
+
+nrow(hospitals)  # About 7,600 open hospitals
 ```
+
+![US Hospitals Overview](/assets/images/posts/urbanicity/us-hospitals-overview.png)
+*Distribution of hospitals across the continental United States. Point size represents bed count. Notice the clustering along coasts and around major metro areas.*
 
 ---
 
 ## Building the Distance Matrix
 
-The core of this analysis is a distance matrix: the distance from every hospital to every other hospital. With 7,581 hospitals, that's about 57 million distances.
+The core of this analysis is a **distance matrix**: the distance from every hospital to every other hospital. With ~7,600 hospitals, that's about 58 million pairwise distances.
 
 ```r
 # Extract coordinates
-x <- Hospitals$X  # Longitude
-y <- Hospitals$Y  # Latitude
+x <- hospitals$Longitude
+y <- hospitals$Latitude
 
 # Create spatial points dataframe
 # The projection string tells R we're working with lat/long on a globe
@@ -65,180 +90,139 @@ xy <- SpatialPointsDataFrame(
 )
 
 # Calculate all pairwise distances (in meters)
-# distm handles the spherical geometry - it knows the Earth isn't flat
+# distm handles spherical geometry - it knows the Earth is round
 mdist <- distm(xy)
 
-# Label rows and columns with hospital addresses
-colnames(mdist) <- Hospitals$ADDRESS
-rownames(mdist) <- Hospitals$ADDRESS
+# Label rows and columns
+colnames(mdist) <- hospitals$ADDRESS
+rownames(mdist) <- hospitals$ADDRESS
 ```
+
+**What happens if you change the coordinate system?** Using `distm` from the `geosphere` package calculates great-circle distances on a sphere. Simple Euclidean distance on lat/long would be wrong because degrees of longitude shrink as you move toward the poles.
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
 
-<p>Imagine 4 hospitals: A, B, C, D. The distance matrix looks like:</p>
+<p>Imagine 4 hospitals: A, B, C, D positioned in 2D space:</p>
 
-|   | A | B | C | D |
-|---|---|---|---|---|
-| A | 0 | 5km | 12km | 30km |
-| B | 5km | 0 | 8km | 25km |
-| C | 12km | 8km | 0 | 20km |
-| D | 30km | 25km | 20km | 0 |
+![Distance Matrix Example](/assets/images/posts/urbanicity/distance-matrix-example.png)
 
-<p>The diagonal is always 0 (distance from a hospital to itself). The matrix is symmetric (A→B = B→A).</p>
+<p>The distance matrix captures all pairwise distances. The diagonal is always 0 (distance from a hospital to itself). The matrix is symmetric because distance(A→B) = distance(B→A).</p>
 
-<p>Hospital A's closest neighbor is B (5km). Hospital D is isolated, with its closest neighbor 20km away.</p>
+<p>From this matrix, we can find:</p>
+<ul>
+<li>Hospital A's closest neighbor is B (2.0 km)</li>
+<li>Hospital D is the most isolated (minimum distance 5.0 km to C)</li>
+</ul>
 
 </details>
 
 ---
 
-## First Attempt: Minimum Distance
+## First Attempt: Single Minimum Distance
 
-The simplest approach: for each hospital, find the distance to its nearest neighbor.
+The simplest approach: for each hospital, find the distance to its nearest neighbor. Classify based on that distance.
 
 ```r
-# Replace 0s with NA (so we don't pick "distance to self" as the minimum)
+# Replace diagonal with Inf (so we don't pick "distance to self")
 mdist2 <- mdist
-mdist2[mdist2 == 0] <- NA
+diag(mdist2) <- Inf
 
 # Find minimum distance for each hospital
-min_distances <- apply(mdist2, 1, min, na.rm = TRUE)
+min_distances <- apply(mdist2, 1, min)
 
-# Create classification based on distance thresholds
-# These thresholds are hypothesis-driven, not scientifically validated
-Hospitals2 <- Hospitals %>%
+# Classification thresholds (in meters)
+# These are hypothesis-driven, not validated
+hospitals <- hospitals %>%
   mutate(
-    Distance = min_distances,
+    MinDistance = min_distances,
     Classification = case_when(
-      Distance <= 300      ~ "Hospital Center",  # Same campus
-      Distance <= 3000     ~ "Very Urban",       # < 3km
-      Distance <= 12000    ~ "Urban",            # 3-12km
-      Distance <= 20000    ~ "Suburban",         # 12-20km
-      Distance <= 30000    ~ "Rural",            # 20-30km
-      TRUE                 ~ "Very Rural"        # > 30km
+      MinDistance <= 3000   ~ "Very Urban",   # < 3 km
+      MinDistance <= 12000  ~ "Urban",        # 3-12 km
+      MinDistance <= 20000  ~ "Suburban",     # 12-20 km
+      MinDistance <= 30000  ~ "Rural",        # 20-30 km
+      TRUE                  ~ "Very Rural"    # > 30 km
     )
   )
+
+table(hospitals$Classification)
 ```
 
 **The problem:** This approach has a flaw. Two hospitals might be 100 meters apart (a hospital campus), but there's nothing else around for miles. Using just the minimum distance, we'd label them "Very Urban" when they're actually isolated.
 
+![Classification Legend](/assets/images/posts/urbanicity/classification-legend.png)
+*The classification scheme based on average distance to k nearest hospitals.*
+
 ---
 
-## The Fix: Average of K Nearest Distances
+## The Fix: K-Nearest Neighbors
 
-Instead of just the closest hospital, we look at the 5 closest and average their distances.
+Instead of just the closest hospital, we look at the **k closest** and average their distances. This smooths out the noise from hospital campuses and isolated pairs.
 
 ```r
 # For each hospital, get the 5 smallest distances
-# t(apply(...)) applies the function row-by-row
 k <- 5
-mdist_sorted <- t(apply(mdist2, 1, sort, na.last = TRUE))[, 1:k]
+sorted_distances <- t(apply(mdist2, 1, function(row) sort(row)[1:k]))
 
 # Average the k nearest distances
-mean_distances <- rowMeans(mdist_sorted, na.rm = TRUE)
+mean_distances <- rowMeans(sorted_distances)
 
 # Reclassify using mean distance
-Hospitals3 <- Hospitals %>%
+hospitals <- hospitals %>%
   mutate(
     MeanDistance = mean_distances,
-    Classification = case_when(
+    Classification_K = case_when(
       MeanDistance <= 3000   ~ "Very Urban",
       MeanDistance <= 12000  ~ "Urban",
       MeanDistance <= 20000  ~ "Suburban",
       MeanDistance <= 30000  ~ "Rural",
       TRUE                   ~ "Very Rural"
     )
-  ) %>%
-  filter(STATUS == "OPEN", BEDS >= 0)
+  )
 ```
 
 **What happens if you change k?** With k=1, you get the original noisy results. Higher k values smooth things out but might miss genuinely dense pockets. k=5 seemed like a reasonable balance for this dataset.
 
----
-
-## Mapping the Results
-
-Using `ggmap` with Google Maps, we can visualize the classifications. The maps show hospitals as circles, sized by bed count and colored by urbanicity classification.
-
-```r
-# Register your Google Maps API key first
-# register_google(key = "YOUR_API_KEY")
-
-# Create filtered datasets for each classification
-Urban_10 <- filter(Hospitals3, Classification == "Very Urban")
-Urban_8 <- filter(Hospitals3, Classification == "Urban")
-Suburb_6 <- filter(Hospitals3, Classification == "Suburban")
-Rural_4 <- filter(Hospitals3, Classification == "Rural")
-Rural_2 <- filter(Hospitals3, Classification == "Very Rural")
-
-# Plot function
-plot_urbanicity <- function(location, zoom = 9) {
-  basemap <- ggmap(get_googlemap(
-    center = location,
-    zoom = zoom,
-    maptype = "roadmap"
-  ))
-
-  basemap +
-    geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-               pch = 21, data = Urban_10) +
-    geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-               pch = 21, data = Urban_8) +
-    geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-               pch = 21, data = Suburb_6) +
-    geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-               pch = 21, data = Rural_4) +
-    geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-               pch = 21, data = Rural_2) +
-    scale_fill_manual(
-      values = c("Very Urban" = "#7b3294",
-                 "Urban" = "#c2a5cf",
-                 "Suburban" = "#f7f7f7",
-                 "Rural" = "#a6dba0",
-                 "Very Rural" = "#008837"),
-      breaks = c("Very Urban", "Urban", "Suburban", "Rural", "Very Rural")
-    ) +
-    scale_size(breaks = c(100, 200, 500, 1000), range = c(1, 6)) +
-    labs(size = "Beds", fill = "Urbanicity") +
-    guides(fill = guide_legend(override.aes = list(size = 5)))
-}
-
-# Example: New York City
-plot_urbanicity(c(lon = -73.987, lat = 40.745), zoom = 9)
-```
+![K Sensitivity](/assets/images/posts/urbanicity/k-sensitivity.png)
+*How the choice of k affects classification distribution. Higher k values shift hospitals toward less urban classifications as we include more distant neighbors in the average.*
 
 ---
 
-## Before and After: New York City
+## Comparing the Methods
 
-The comparison between the single-distance method and the k-nearest method is striking.
+The difference between single-distance and k-nearest classification is dramatic in areas with hospital campuses.
 
-**Single Distance Method (k=1):**
-- Manhattan shows a chaotic mix of colors
-- Parts of Queens appear as "Very Urban" as Manhattan
-- No clear gradient from urban core to suburbs
+![Single vs K-Nearest](/assets/images/posts/urbanicity/single-vs-knearest.png)
+*New York region comparison. Left: Single minimum distance (noisy). Right: K-nearest average (smoother, more realistic).*
 
-**K-Nearest Method (k=5):**
-- Manhattan is uniformly purple (Very Urban)
-- Clear gradient: Manhattan → Brooklyn/Queens → Long Island
-- Suburban and rural classifications only appear where they make sense
-
-The k-nearest approach captures what we intuitively know: Manhattan is more urban than Staten Island, even if both have hospitals close together.
+**Key observations:**
+- Manhattan is uniformly "Very Urban" with k-nearest, as expected
+- Brooklyn and Queens show a gradient, transitioning from Urban to Suburban
+- Small clusters that appeared "Very Urban" with single-distance are correctly classified as Suburban with k-nearest
 
 ---
 
-## More Examples
+## Regional Comparisons
 
-**Pacific Northwest:**
-- Seattle shows a clear urban core surrounded by suburbs
-- Eastern Washington is correctly classified as rural/very rural
-- The gradient from Seattle to the mountains is visible
+Different regions show the method working as expected:
 
-**Kansas:**
-- Kansas City shows as Urban (not Very Urban, which feels right)
-- Wichita shows as Urban
-- Small towns that appeared urban with k=1 are now correctly classified as Suburban or Rural
+![Regional Comparison](/assets/images/posts/urbanicity/regional-comparison.png)
+*Three regions showing urbanicity classifications. Urban cores are purple, rural areas are green.*
+
+**New York Metro:**
+- Manhattan: Very Urban (dense hospital network)
+- Brooklyn/Queens: Urban to Suburban gradient
+- Long Island suburbs: Suburban to Rural
+
+**Los Angeles:**
+- Downtown LA: Very Urban
+- Sprawling suburbs: Mix of Urban and Suburban
+- Desert edges: Rural to Very Rural
+
+**Montana:**
+- Few hospitals, widely spaced
+- Almost entirely Rural to Very Rural
+- Small clusters around cities like Billings
 
 ---
 
@@ -247,23 +231,24 @@ The k-nearest approach captures what we intuitively know: Manhattan is more urba
 This approach has real limitations:
 
 **What it misses:**
-- Specialty hospitals (children's, psychiatric) might cluster differently than general hospitals
-- New hospitals are built, old ones close. The data is a snapshot.
-- Rural areas with one large regional hospital look "isolated" even if well-served
-- The distance thresholds are arbitrary. 3km vs 4km as the urban cutoff is a judgment call.
+- **Hospital type matters:** Specialty hospitals (children's, psychiatric, VA) cluster differently than general hospitals
+- **Thresholds are arbitrary:** Why 3km vs 4km as the Urban cutoff? These are judgment calls.
+- **Static snapshot:** Hospitals open and close. The data is a point in time.
+- **Ignores hospital size:** A 50-bed rural hospital and a 500-bed urban medical center are treated the same
+- **Doesn't account for terrain:** 10km in Manhattan means something different than 10km in the Rockies
 
 **Possible improvements:**
-- Weight by hospital size (bed count)
-- Incorporate drive time instead of straight-line distance
-- Use other infrastructure: fire stations, schools, grocery stores
-- Validate against census urbanicity measures
-- Try different values of k and see how results change
+- **Weight by bed count:** Larger hospitals serve larger populations
+- **Use drive time instead of straight-line distance:** More realistic for healthcare access
+- **Incorporate other infrastructure:** Fire stations, schools, grocery stores
+- **Validate against census urbanicity measures:** See how well this proxy actually works
+- **Try different k values:** Build a sensitivity analysis
 
 **What this could be useful for:**
 - Quick urbanicity estimates for areas without recent census data
 - Identifying underserved areas (long distances to hospitals)
 - Retail site selection (hospital density correlates with commercial activity)
-- Academic research on healthcare access
+- Academic research on healthcare access disparities
 
 ---
 
@@ -275,107 +260,137 @@ This approach has real limitations:
 
 3. **K-nearest averaging smooths the noise.** Looking at the 5 nearest hospitals gives a more realistic picture.
 
-4. **The thresholds are hypotheses, not facts.** The 3km/12km/20km/30km boundaries were chosen based on intuition, not validation.
+4. **The thresholds are hypotheses, not facts.** The 3km/12km/20km/30km boundaries were chosen based on intuition, not rigorous validation.
 
-5. **Maps tell the story.** The before/after comparison for NYC shows the improvement clearly.
+5. **Maps tell the story.** The visual comparison between methods makes the improvement obvious.
 
 ---
 
-## Full Code
+## Data Sources
+
+The hospital data used in this analysis is from the [Homeland Infrastructure Foundation-Level Data (HIFLD)](https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals) open data portal. Similar datasets are available from:
+- [CMS Hospital Compare](https://data.cms.gov/)
+- [AHA Annual Survey](https://www.ahadata.com/)
+- [Definitive Healthcare](https://www.definitivehc.com/)
+
+For the `ggmap` package, you'll need a Google Maps API key. See the [ggmap documentation](https://cran.r-project.org/web/packages/ggmap/readme/README.html) for setup instructions.
+
+---
+
+## Appendix: Complete R Script
 
 <details>
-<summary><strong>Complete R Script</strong></summary>
+<summary><strong>Full Implementation</strong></summary>
 
 ```r
-# Libraries
+# ============================================
+# Measuring Urbanicity with Hospital Distances
+# ============================================
+
+# Load packages
 library(tidyverse)
 library(ggmap)
 library(geosphere)
 library(sp)
 library(matrixStats)
 
-# Load data
-Hospitals <- read_csv("Hospitals.csv")
+# ----- Load Data -----
+hospitals <- read.csv("hospitals.csv")
 
-# Create spatial points
-x <- Hospitals$X
-y <- Hospitals$Y
+# Filter and clean
+hospitals <- hospitals %>%
+  filter(STATUS == "OPEN") %>%
+  filter(!is.na(X) & !is.na(Y)) %>%
+  mutate(
+    Longitude = X,
+    Latitude = Y,
+    BEDS = ifelse(BEDS < 0, NA, BEDS)
+  )
+
+# ----- Build Distance Matrix -----
+x <- hospitals$Longitude
+y <- hospitals$Latitude
+
 xy <- SpatialPointsDataFrame(
   matrix(c(x, y), ncol = 2),
   data.frame(ID = seq_along(x)),
   proj4string = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84")
 )
 
-# Distance matrix
 mdist <- distm(xy)
-colnames(mdist) <- Hospitals$ADDRESS
-rownames(mdist) <- Hospitals$ADDRESS
+diag(mdist) <- Inf
 
-# Replace 0s with NA
-mdist2 <- mdist
-mdist2[mdist2 == 0] <- NA
+# ----- Single Distance Classification -----
+min_distances <- apply(mdist, 1, min)
 
-# Get k nearest distances
+hospitals$MinDistance <- min_distances
+hospitals$Class_Single <- case_when(
+  hospitals$MinDistance <= 3000   ~ "Very Urban",
+  hospitals$MinDistance <= 12000  ~ "Urban",
+  hospitals$MinDistance <= 20000  ~ "Suburban",
+  hospitals$MinDistance <= 30000  ~ "Rural",
+  TRUE                            ~ "Very Rural"
+)
+
+# ----- K-Nearest Classification -----
 k <- 5
-mdist_sorted <- t(apply(mdist2, 1, sort, na.last = TRUE))[, 1:k]
-mean_distances <- rowMeans(mdist_sorted, na.rm = TRUE)
+sorted_distances <- t(apply(mdist, 1, function(row) sort(row)[1:k]))
+mean_distances <- rowMeans(sorted_distances)
 
-# Classify
-Hospitals3 <- Hospitals %>%
-  mutate(
-    MeanDistance = mean_distances,
-    Classification = case_when(
-      MeanDistance <= 3000   ~ "Very Urban",
-      MeanDistance <= 12000  ~ "Urban",
-      MeanDistance <= 20000  ~ "Suburban",
-      MeanDistance <= 30000  ~ "Rural",
-      TRUE                   ~ "Very Rural"
-    )
-  ) %>%
-  filter(STATUS == "OPEN", BEDS >= 0)
+hospitals$MeanDistance <- mean_distances
+hospitals$Class_KNearest <- case_when(
+  hospitals$MeanDistance <= 3000   ~ "Very Urban",
+  hospitals$MeanDistance <= 12000  ~ "Urban",
+  hospitals$MeanDistance <= 20000  ~ "Suburban",
+  hospitals$MeanDistance <= 30000  ~ "Rural",
+  TRUE                             ~ "Very Rural"
+)
 
-# Split by classification
-Urban_10 <- filter(Hospitals3, Classification == "Very Urban")
-Urban_8 <- filter(Hospitals3, Classification == "Urban")
-Suburb_6 <- filter(Hospitals3, Classification == "Suburban")
-Rural_4 <- filter(Hospitals3, Classification == "Rural")
-Rural_2 <- filter(Hospitals3, Classification == "Very Rural")
+# ----- Mapping -----
+# Register your Google Maps API key
+# register_google(key = "YOUR_API_KEY")
 
-# Plot NYC
-# register_google(key = "YOUR_KEY")
-nyc_map <- ggmap(get_googlemap(
-  center = c(lon = -73.987, lat = 40.745),
-  zoom = 9,
-  maptype = "roadmap"
-))
+# Create plot data by classification
+plot_urbanicity <- function(location, zoom = 9) {
+  basemap <- ggmap(get_googlemap(center = location, zoom = zoom, maptype = "roadmap"))
 
-nyc_map +
-  geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-             pch = 21, data = Urban_10) +
-  geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-             pch = 21, data = Urban_8) +
-  geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-             pch = 21, data = Suburb_6) +
-  geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-             pch = 21, data = Rural_4) +
-  geom_point(aes(x = X, y = Y, size = BEDS, fill = Classification),
-             pch = 21, data = Rural_2) +
-  scale_fill_manual(
-    values = c("Very Urban" = "#7b3294",
-               "Urban" = "#c2a5cf",
-               "Suburban" = "#f7f7f7",
-               "Rural" = "#a6dba0",
-               "Very Rural" = "#008837"),
-    breaks = c("Very Urban", "Urban", "Suburban", "Rural", "Very Rural")
-  ) +
-  scale_size(breaks = c(100, 200, 500, 1000), range = c(1, 6)) +
-  labs(size = "Beds", fill = "Urbanicity") +
-  guides(fill = guide_legend(override.aes = list(size = 5))) +
-  theme(legend.position = "right")
+  basemap +
+    geom_point(
+      data = hospitals,
+      aes(x = Longitude, y = Latitude, fill = Class_KNearest, size = BEDS),
+      pch = 21, alpha = 0.7
+    ) +
+    scale_fill_manual(
+      values = c(
+        "Very Urban" = "#7b3294",
+        "Urban" = "#c2a5cf",
+        "Suburban" = "#f7f7f7",
+        "Rural" = "#a6dba0",
+        "Very Rural" = "#008837"
+      ),
+      breaks = c("Very Urban", "Urban", "Suburban", "Rural", "Very Rural")
+    ) +
+    scale_size(range = c(1, 6), breaks = c(100, 250, 500, 1000)) +
+    labs(fill = "Urbanicity", size = "Beds") +
+    guides(fill = guide_legend(override.aes = list(size = 5)))
+}
+
+# Example: New York City
+plot_urbanicity(c(lon = -73.987, lat = 40.745), zoom = 9)
+
+# Example: Los Angeles
+plot_urbanicity(c(lon = -118.25, lat = 34.05), zoom = 9)
+
+# ----- Summary Statistics -----
+print("Single Distance Classification:")
+print(table(hospitals$Class_Single))
+
+print("\nK-Nearest Classification (k=5):")
+print(table(hospitals$Class_KNearest))
 ```
 
 </details>
 
 ---
 
-*This tutorial is a remaster of work I did in early 2020, before I joined my first data science role. I've cleaned up the code and explanations, but kept the core analysis intact.*
+*PS: This tutorial is a remaster of work I did in early 2020, before I started my first data science role. I've cleaned up the code and explanations, but kept the core analysis intact. The original was rough around the edges, but it taught me a lot about translating ideas into working code.*

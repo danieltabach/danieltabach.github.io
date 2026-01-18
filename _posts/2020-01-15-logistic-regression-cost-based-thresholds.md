@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "Logistic Regression: When Accuracy Isn't Enough"
+title: "Beyond Accuracy: Picking the Right Threshold When Costs Aren't Equal"
 date: 2020-01-15
 categories: [practical-ml]
 tags: [r, classification, logistic-regression, roc-curve, threshold-optimization]
@@ -10,19 +10,35 @@ toc_label: "Contents"
 toc_sticky: true
 ---
 
-Most tutorials stop at accuracy. But what if misclassifying a customer costs you $50, while missing a fraudster costs $500?
+*Most tutorials stop at accuracy. But what if a false negative costs you 10x more than a false positive?*
 
-This post goes beyond the basics. We'll build a logistic regression model, understand ROC curves, and then do what most tutorials skip: pick a threshold based on real business costs.
+---
+
+## Introduction
+
+Logistic regression is one of those algorithms everyone learns but few people use correctly in production. The model outputs probabilities, not predictions. To get actual predictions, you need a threshold: if the probability exceeds 0.5, predict positive. Otherwise, predict negative.
+
+But why 0.5? That number assumes false positives and false negatives are equally costly. They rarely are.
+
+In this tutorial, we build a logistic regression model from scratch in R, understand the ROC curve, and then do what most tutorials skip: pick a threshold that minimizes actual business cost.
+
+**What we'll cover:**
+- Building and evaluating a logistic regression model
+- Understanding ROC curves and AUC
+- Finding the "optimal" threshold with Youden's Index
+- Going beyond Youden: cost-based threshold optimization
+- When to use which approach
 
 ---
 
 ## The Dataset
 
-We're using the [German Credit dataset](https://archive.ics.uci.edu/dataset/144/statlog+german+credit+data), a classic for credit risk modeling. Each row represents a loan applicant, and the target variable tells us whether they defaulted (1) or not (0).
+We're using the [German Credit dataset](https://archive.ics.uci.edu/dataset/144/statlog+german+credit+data), a classic for credit risk modeling. Each row represents a loan applicant with features like credit history, loan duration, and employment status. The target tells us whether they defaulted (1) or not (0).
 
 ```r
 # Load the data
-germancredit <- read.table("germancredit.txt", header=FALSE, sep=" ")
+# Download from: https://archive.ics.uci.edu/dataset/144/statlog+german+credit+data
+germancredit <- read.table("germancredit.txt", header = FALSE, sep = " ")
 data <- germancredit
 
 # Rename columns for clarity
@@ -37,36 +53,21 @@ colnames(data) <- new_names
 # Clean up
 data <- unique(data)  # Remove duplicates
 
-# Quick null check - this dataset is clean, but always verify
-null_count <- sapply(data, function(x) sum(is.na(x)))
-# All zeros - we're good
-```
-
----
-
-## Quick EDA
-
-The dataset has 20 features: a mix of categorical variables (credit history, purpose of loan, employment status) and numerical ones (age, loan duration, credit amount). The target is originally coded as 1/2, so we'll fix that.
-
-```r
-library(caret)
-
-# Check for collinearity among numeric features
-int_cols <- grep("_I$", colnames(data), value = TRUE)
-correlation_matrix <- cor(data[, int_cols], use = "pairwise.complete.obs")
-highly_correlated <- findCorrelation(correlation_matrix, cutoff = 0.75)
-# No highly correlated features - good to go
+# Fix target: originally 1=good, 2=bad. Convert to 0/1
+data$Target <- data$Target - 1
 ```
 
 ---
 
 ## Preprocessing
 
-Before modeling, we need to one-hot encode categorical variables. The key is to drop one dummy per category to avoid the multicollinearity trap.
+Before modeling, we need to handle categorical variables. The key is one-hot encoding with the dummy variable trap in mind: drop one category per feature to avoid multicollinearity.
 
 ```r
 library(fastDummies)
+library(caret)
 
+# Identify categorical columns
 cat_cols <- grep("_C$", colnames(data), value = TRUE)
 
 # One-hot encode, dropping first dummy to prevent collinearity
@@ -75,12 +76,9 @@ data_encoded <- dummy_cols(data,
                            remove_first_dummy = TRUE,
                            remove_selected_columns = TRUE)
 
-# Fix binary columns (they're stored as characters)
+# Fix binary columns (stored as characters)
 data_encoded$Telephone_B <- ifelse(data_encoded$Telephone_B == "A192", 1, 0)
 data_encoded$International_Employee_B <- ifelse(data_encoded$International_Employee_B == "A201", 1, 0)
-
-# Fix target: originally 1=good, 2=bad. Convert to 0/1
-data_encoded$Target <- data_encoded$Target - 1
 ```
 
 <details>
@@ -127,15 +125,13 @@ logistic_model <- glm(Target ~ ., data = train_data, family = binomial)
 predicted_probs <- predict(logistic_model, newdata = validation_data, type = "response")
 ```
 
-The model outputs probabilities between 0 and 1. To make actual predictions, we need a threshold: if probability > threshold, predict 1, otherwise predict 0.
-
-The default threshold is 0.5. But is that optimal?
+The model outputs probabilities between 0 and 1. To make actual predictions, we need a threshold. The default is 0.5, but is that optimal?
 
 ---
 
 ## The ROC Curve
 
-The ROC curve shows every possible tradeoff between catching true positives and avoiding false positives. Each point on the curve represents a different threshold.
+The ROC (Receiver Operating Characteristic) curve shows every possible tradeoff between catching true positives and avoiding false positives. Each point on the curve represents a different threshold.
 
 ```r
 library(pROC)
@@ -145,34 +141,39 @@ plot(roc_obj, main = "ROC Curve", col = "#1c61b6", lwd = 2)
 abline(a = 0, b = 1, lty = 2, col = "gray")  # Random classifier baseline
 ```
 
-**How to read this:**
-- The diagonal line represents random guessing (AUC = 0.5)
-- A perfect classifier hugs the top-left corner (AUC = 1.0)
-- Our curve falls somewhere in between
+![ROC Curve](/assets/images/posts/logistic-regression/roc-curve.png)
+*The ROC curve for our credit risk model. The diagonal represents random guessing (AUC = 0.5). Our curve shows the model performs better than random.*
 
-The **Area Under the Curve (AUC)** summarizes performance in one number. Higher is better.
+**How to read this:**
+- **X-axis (False Positive Rate):** The proportion of good customers incorrectly flagged as bad
+- **Y-axis (True Positive Rate):** The proportion of bad customers correctly identified
+- **The diagonal:** A random classifier that just flips a coin
+- **Area Under the Curve (AUC):** Summarizes performance in one number. Higher is better.
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
 
 <p>Imagine 4 predictions with these probabilities and true labels:</p>
 
-| Sample | Prob | True Label |
-|--------|------|------------|
-| A      | 0.9  | 1          |
-| B      | 0.7  | 1          |
-| C      | 0.4  | 0          |
-| D      | 0.2  | 0          |
+| Sample | Probability | True Label |
+|--------|-------------|------------|
+| A      | 0.9         | 1 (bad)    |
+| B      | 0.7         | 1 (bad)    |
+| C      | 0.4         | 0 (good)   |
+| D      | 0.2         | 0 (good)   |
 
-<p>At threshold = 0.5:</p>
+<p><strong>At threshold = 0.5:</strong></p>
 <ul>
 <li>Predict 1 for A, B (both correct = 2 True Positives)</li>
 <li>Predict 0 for C, D (both correct = 2 True Negatives)</li>
+<li>TPR = 2/2 = 100%, FPR = 0/2 = 0%</li>
 </ul>
-<p>Perfect! But what if threshold = 0.8?</p>
+
+<p><strong>At threshold = 0.8:</strong></p>
 <ul>
 <li>Only A gets predicted as 1</li>
 <li>B becomes a False Negative (we missed it)</li>
+<li>TPR = 1/2 = 50%, FPR = 0/2 = 0%</li>
 </ul>
 
 <p>The ROC curve plots all these tradeoffs as you sweep the threshold from 0 to 1.</p>
@@ -183,7 +184,11 @@ The **Area Under the Curve (AUC)** summarizes performance in one number. Higher 
 
 ## Finding the Optimal Threshold: Youden's Index
 
-If you want a balanced tradeoff between sensitivity and specificity, Youden's Index helps. It finds the threshold that maximizes: `sensitivity + specificity - 1`
+If you want a balanced tradeoff between sensitivity and specificity, Youden's Index helps. It finds the threshold that maximizes:
+
+$$J = \text{Sensitivity} + \text{Specificity} - 1$$
+
+This is equivalent to finding the point on the ROC curve furthest from the diagonal.
 
 ```r
 # Extract all points on the ROC curve
@@ -199,22 +204,17 @@ youden_indices <- sensitivities + specificities - 1
 optimal_index <- which.max(youden_indices)
 optimal_threshold <- thresholds[optimal_index]
 
-# Visualize
-plot(1 - specificities, sensitivities, type = "l",
-     xlab = "1 - Specificity (False Positive Rate)",
-     ylab = "Sensitivity (True Positive Rate)",
-     main = "ROC Curve with Optimal Threshold")
-points(1 - specificities[optimal_index], sensitivities[optimal_index],
-       col = "red", pch = 19, cex = 1.5)
+print(paste("Optimal threshold (Youden):", round(optimal_threshold, 3)))
 ```
 
-The red dot marks the "optimal" threshold for balanced performance.
+![Youden's Index](/assets/images/posts/logistic-regression/youden-optimal.png)
+*The red point marks the optimal threshold according to Youden's Index. This balances sensitivity and specificity equally.*
 
 ---
 
 ## The Confusion Matrix
 
-Using our optimal threshold:
+Using our optimal threshold, we can build the confusion matrix:
 
 ```r
 predicted_classes <- ifelse(predicted_probs > optimal_threshold, 1, 0)
@@ -222,145 +222,144 @@ confusion_matrix <- table(Predicted = predicted_classes, Actual = validation_dat
 print(confusion_matrix)
 ```
 
+![Confusion Matrix](/assets/images/posts/logistic-regression/confusion-matrix.png)
+*The confusion matrix at the Youden-optimal threshold. TN = True Negative, FP = False Positive, FN = False Negative, TP = True Positive.*
+
 <details>
-<summary><strong>See it with a tiny example</strong></summary>
+<summary><strong>Reading the confusion matrix</strong></summary>
 
-<p>A confusion matrix for 100 predictions might look like:</p>
+<table>
+<tr><th></th><th>Actual 0 (Good)</th><th>Actual 1 (Bad)</th></tr>
+<tr><td><strong>Predicted 0</strong></td><td>True Negative (TN)</td><td>False Negative (FN)</td></tr>
+<tr><td><strong>Predicted 1</strong></td><td>False Positive (FP)</td><td>True Positive (TP)</td></tr>
+</table>
 
-|                | Actual 0 | Actual 1 |
-|----------------|----------|----------|
-| **Predicted 0**| 154 (TN) | 56 (FN)  |
-| **Predicted 1**| 30 (FP)  | 60 (TP)  |
-
-<p><strong>Reading it:</strong></p>
+<p><strong>From our model:</strong></p>
 <ul>
-<li><strong>True Negatives (154)</strong>: Correctly predicted no default</li>
-<li><strong>False Positives (30)</strong>: Predicted default, but they paid (we denied a good customer)</li>
-<li><strong>False Negatives (56)</strong>: Predicted no default, but they did (we approved a bad customer)</li>
-<li><strong>True Positives (60)</strong>: Correctly predicted default</li>
+<li><strong>TN:</strong> Good customers correctly approved</li>
+<li><strong>FP:</strong> Good customers incorrectly denied (lost business)</li>
+<li><strong>FN:</strong> Bad customers incorrectly approved (defaults!)</li>
+<li><strong>TP:</strong> Bad customers correctly denied</li>
 </ul>
 
-<p><strong>Metrics from this matrix:</strong></p>
+<p><strong>Key metrics:</strong></p>
 <ul>
-<li>Accuracy = (154 + 60) / 300 = 71.3%</li>
-<li>Precision = 60 / (60 + 30) = 66.7%</li>
-<li>Recall = 60 / (60 + 56) = 51.7%</li>
+<li>Accuracy = (TN + TP) / Total</li>
+<li>Precision = TP / (TP + FP)</li>
+<li>Recall = TP / (TP + FN)</li>
 </ul>
 
 </details>
 
 ---
 
-## When Accuracy Isn't Enough: Cost-Based Thresholds
+## When Accuracy Isn't Enough
 
 Here's where it gets real. Youden's Index assumes false positives and false negatives are equally bad. They rarely are.
 
 **Healthcare example:**
-- False Positive (healthy person diagnosed with cancer): Unnecessary stress, tests, maybe surgery
-- False Negative (sick person cleared as healthy): Disease progresses, potentially fatal
+- **False Positive** (healthy person diagnosed with disease): Unnecessary stress, tests, maybe invasive procedures
+- **False Negative** (sick person cleared as healthy): Disease progresses, potentially fatal
 
 In healthcare, you'd rather have more false positives than miss a single cancer case. You want high recall, even at the cost of precision.
 
 **Fraud detection example:**
-- False Positive (legitimate transaction blocked): Annoyed customer, maybe lost sale
-- False Negative (fraud goes through): Direct financial loss, chargebacks, fees
+- **False Positive** (legitimate transaction blocked): Annoyed customer, maybe lost sale ($5-50)
+- **False Negative** (fraud goes through): Direct financial loss, chargebacks, fees ($500-5000)
 
-The costs depend on your business. A $10 false positive and a $1000 false negative require very different thresholds.
+The costs depend on your business. A $10 false positive and a $500 false negative require very different thresholds.
+
+![Threshold Comparison](/assets/images/posts/logistic-regression/threshold-comparison.png)
+*Left: Classification metrics at different thresholds. Right: Business cost varies dramatically based on threshold choice.*
 
 ---
 
 ## Building a Cost-Based Optimizer
 
-Let's find the threshold that minimizes total cost, not just maximizes some abstract metric.
+Let's find the threshold that minimizes total business cost, not just maximizes some abstract metric.
 
 ```r
 # Define your costs
-# In this example: FP costs $1.10, FN costs $1.20
-FP_Cost <- 1.1
-FN_Cost <- 1.2
+# Example: FP costs $1 (deny good customer), FN costs $5 (approve bad customer who defaults)
+FP_Cost <- 1
+FN_Cost <- 5
 
-# Test every threshold from 0 to 1
-threshold_seq <- seq(0.01, 0.99, 0.01)
+# Test every threshold from 0.1 to 0.9
+threshold_seq <- seq(0.1, 0.9, 0.01)
 
 # Store results
-costs_df <- data.frame(
-  threshold = numeric(length(threshold_seq)),
-  cost = numeric(length(threshold_seq)),
-  TP = numeric(length(threshold_seq)),
-  TN = numeric(length(threshold_seq)),
-  FP = numeric(length(threshold_seq)),
-  FN = numeric(length(threshold_seq))
-)
+costs_df <- data.frame(threshold = numeric(), cost = numeric(),
+                       FP = numeric(), FN = numeric())
 
-# Loop through thresholds
-for (i in seq_along(threshold_seq)) {
-  threshold <- threshold_seq[i]
-
+for (threshold in threshold_seq) {
   # Classify at this threshold
   predicted_classes <- ifelse(predicted_probs > threshold, 1, 0)
 
   # Build confusion matrix
-  confusion_matrix <- table(Predicted = predicted_classes,
-                            Actual = validation_data$Target)
+  cm <- table(Predicted = predicted_classes, Actual = validation_data$Target)
 
-  # Handle edge cases where all predictions are 0 or all are 1
-  if (nrow(confusion_matrix) != 2 || ncol(confusion_matrix) != 2) {
-    next
-  }
+  # Handle edge cases
+  if (nrow(cm) != 2 || ncol(cm) != 2) next
 
   # Extract values
-  TN <- confusion_matrix[1, 1]
-  FP <- confusion_matrix[1, 2]
-  FN <- confusion_matrix[2, 1]
-  TP <- confusion_matrix[2, 2]
+  FP <- cm[2, 1]  # Predicted 1, Actual 0
+  FN <- cm[1, 2]  # Predicted 0, Actual 1
 
-  # Calculate cost
-  current_cost <- FN * FN_Cost + FP * FP_Cost
+  # Calculate total cost
+  total_cost <- FP * FP_Cost + FN * FN_Cost
 
-  # Store
-  costs_df[i, ] <- c(threshold, current_cost, TP, TN, FP, FN)
+  costs_df <- rbind(costs_df,
+                    data.frame(threshold = threshold, cost = total_cost,
+                               FP = FP, FN = FN))
 }
 
-# Remove empty rows
-costs_df <- costs_df[costs_df$threshold != 0, ]
+# Find minimum cost threshold
+optimal_idx <- which.min(costs_df$cost)
+cost_optimal_threshold <- costs_df$threshold[optimal_idx]
+
+print(paste("Cost-optimal threshold:", cost_optimal_threshold))
+print(paste("Minimum cost:", costs_df$cost[optimal_idx]))
 ```
 
-**What happens if you change the costs?** If FN_Cost is much higher than FP_Cost (like in healthcare), the optimal threshold shifts lower. The model becomes more aggressive about predicting positives to avoid missing any. If FP_Cost is higher (like in spam filtering where false positives annoy users), the threshold shifts higher.
+**What happens if you change the costs?** If `FN_Cost` is much higher than `FP_Cost` (like in healthcare), the optimal threshold shifts lower. The model becomes more aggressive about predicting positives to avoid missing any. If `FP_Cost` is higher (like in spam filtering where false positives annoy users), the threshold shifts higher.
+
+![Cost Curve](/assets/images/posts/logistic-regression/cost-curve.png)
+*Total cost as a function of threshold. The red line marks the cost-optimal threshold, which may differ from the Youden-optimal threshold.*
 
 ---
 
-## Finding the Cost-Optimal Threshold
+## How Cost Structure Changes the Optimal Threshold
 
-```r
-# Find minimum cost
-min_cost_row <- costs_df[which.min(costs_df$cost), ]
-optimal_threshold_cost <- min_cost_row$threshold
+Different business problems have different cost structures:
 
-# Visualize the cost curve
-plot(costs_df$threshold, costs_df$cost,
-     type = "l",
-     xlab = "Threshold",
-     ylab = "Total Cost",
-     main = "Total Cost vs. Threshold")
-abline(v = optimal_threshold_cost, col = "red", lty = 2)
-text(optimal_threshold_cost + 0.05, max(costs_df$cost) * 0.9,
-     paste("Optimal:", optimal_threshold_cost), col = "red")
-```
+![Cost Scenarios](/assets/images/posts/logistic-regression/cost-scenarios.png)
+*The optimal threshold shifts based on the cost structure. Fraud detection (high FN cost) pushes the threshold lower. Spam filtering (high FP cost) pushes it higher.*
 
-With our example costs (FP = 1.1, FN = 1.2), the optimal threshold lands around 0.6. This is higher than the default 0.5 because false negatives are slightly more expensive, so we want to be more confident before predicting "no default."
+| Scenario | FP Cost | FN Cost | Optimal Threshold |
+|----------|---------|---------|-------------------|
+| Equal costs | $1 | $1 | ~0.50 (balanced) |
+| Fraud detection | $1 | $10 | Lower (~0.30) |
+| Spam filter | $10 | $1 | Higher (~0.70) |
+| Medical screening | $1 | $100 | Very low (~0.10) |
 
 ---
 
 ## When Would You Use This?
 
-| Scenario | FP Cost | FN Cost | Threshold Strategy |
-|----------|---------|---------|-------------------|
-| Cancer screening | Low | Very High | Low threshold (catch everyone) |
-| Spam filter | High | Low | High threshold (don't block real email) |
-| Fraud detection | Medium | High | Lower threshold (catch more fraud) |
-| Loan approval | Medium | Medium | Use Youden's or 0.5 |
+**Use Youden's Index when:**
+- You don't have clear cost information
+- False positives and false negatives are roughly equally bad
+- You want a quick, defensible baseline
 
-The key insight: **the "best" threshold depends entirely on your problem**. A model with 95% accuracy might be useless if it's missing the 5% that costs you the most.
+**Use cost-based optimization when:**
+- You have actual dollar costs for each error type
+- The costs are meaningfully different (at least 2-3x)
+- You're deploying to production and care about business outcomes
+
+**Neither approach when:**
+- Your model has terrible AUC (< 0.6). Fix the model first.
+- The costs change frequently. Build a system that recalculates thresholds.
+- You have massive class imbalance. Consider sampling techniques first.
 
 ---
 
@@ -368,7 +367,7 @@ The key insight: **the "best" threshold depends entirely on your problem**. A mo
 
 1. **Logistic regression outputs probabilities**, not classes. You need a threshold to convert them.
 
-2. **ROC curves show all possible thresholds** and their tradeoffs between true positive rate and false positive rate.
+2. **The ROC curve shows all possible thresholds** and their tradeoffs between true positive rate and false positive rate.
 
 3. **Youden's Index finds a balanced threshold**, but assumes equal costs for both types of errors.
 
@@ -378,20 +377,24 @@ The key insight: **the "best" threshold depends entirely on your problem**. A mo
 
 ---
 
-## Full Code
+## Appendix: Complete R Script
 
 <details>
-<summary><strong>Complete R Script</strong></summary>
+<summary><strong>Full Implementation</strong></summary>
 
 ```r
+# ============================================
+# Logistic Regression with Cost-Based Thresholds
+# ============================================
+
 # Load packages
 library(caTools)
 library(fastDummies)
 library(caret)
 library(pROC)
 
-# Load and prep data
-germancredit <- read.table("germancredit.txt", header=FALSE, sep=" ")
+# ----- Data Loading -----
+germancredit <- read.table("germancredit.txt", header = FALSE, sep = " ")
 data <- germancredit
 
 new_names <- c("existing_checking_C", "Duration_I", "Credit_hist_C", "Purpose_C",
@@ -401,53 +404,65 @@ new_names <- c("existing_checking_C", "Duration_I", "Credit_hist_C", "Purpose_C"
                "International_Employee_B", "Target")
 colnames(data) <- new_names
 data <- unique(data)
+data$Target <- data$Target - 1
 
-# Encode
+# ----- Preprocessing -----
 cat_cols <- grep("_C$", colnames(data), value = TRUE)
 data_encoded <- dummy_cols(data, select_columns = cat_cols,
                            remove_first_dummy = TRUE, remove_selected_columns = TRUE)
 data_encoded$Telephone_B <- ifelse(data_encoded$Telephone_B == "A192", 1, 0)
 data_encoded$International_Employee_B <- ifelse(data_encoded$International_Employee_B == "A201", 1, 0)
-data_encoded$Target <- data_encoded$Target - 1
 
-# Split
+# ----- Train/Test Split -----
 set.seed(123)
 splitIndex <- sample.split(data_encoded$Target, SplitRatio = 0.7)
 train_data <- data_encoded[splitIndex, ]
 validation_data <- data_encoded[!splitIndex, ]
 
-# Model
+# ----- Model Training -----
 logistic_model <- glm(Target ~ ., data = train_data, family = binomial)
 predicted_probs <- predict(logistic_model, newdata = validation_data, type = "response")
 
-# ROC
+# ----- ROC Curve -----
 roc_obj <- roc(validation_data$Target, predicted_probs)
+print(paste("AUC:", round(auc(roc_obj), 3)))
 
-# Cost optimization
-FP_Cost <- 1.1
-FN_Cost <- 1.2
-threshold_seq <- seq(0.01, 0.99, 0.01)
+# ----- Youden's Index -----
+full_coords <- coords(roc_obj, "all")
+youden_indices <- full_coords$sensitivity + full_coords$specificity - 1
+youden_threshold <- full_coords$threshold[which.max(youden_indices)]
+print(paste("Youden optimal threshold:", round(youden_threshold, 3)))
+
+# ----- Cost-Based Optimization -----
+FP_Cost <- 1
+FN_Cost <- 5
 
 costs_df <- data.frame(threshold = numeric(), cost = numeric())
 
-for (threshold in threshold_seq) {
+for (threshold in seq(0.1, 0.9, 0.01)) {
   predicted_classes <- ifelse(predicted_probs > threshold, 1, 0)
   cm <- table(Predicted = predicted_classes, Actual = validation_data$Target)
 
   if (nrow(cm) == 2 && ncol(cm) == 2) {
-    FP <- cm[1, 2]
-    FN <- cm[2, 1]
-    cost <- FN * FN_Cost + FP * FP_Cost
+    FP <- cm[2, 1]
+    FN <- cm[1, 2]
+    cost <- FP * FP_Cost + FN * FN_Cost
     costs_df <- rbind(costs_df, data.frame(threshold = threshold, cost = cost))
   }
 }
 
-optimal_threshold <- costs_df$threshold[which.min(costs_df$cost)]
-print(paste("Optimal threshold:", optimal_threshold))
+cost_optimal <- costs_df$threshold[which.min(costs_df$cost)]
+print(paste("Cost-optimal threshold:", cost_optimal))
+
+# ----- Final Evaluation -----
+final_predictions <- ifelse(predicted_probs > cost_optimal, 1, 0)
+final_cm <- table(Predicted = final_predictions, Actual = validation_data$Target)
+print("Final Confusion Matrix:")
+print(final_cm)
 ```
 
 </details>
 
 ---
 
-*This tutorial is a remaster of work I did in early 2020, before I joined my first data science role. I've cleaned up the code and explanations, but kept the core analysis intact.*
+*PS: This tutorial is a remaster of work I did in early 2020, before I started my first data science role. I've cleaned up the code and explanations, but kept the core analysis intact. The original was rough around the edges, but it taught me a lot about translating ideas into working code.*
