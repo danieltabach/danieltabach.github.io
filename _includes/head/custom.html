@@ -7,7 +7,9 @@
     tex2jax: {
       inlineMath: [['$','$'], ['\\(','\\)']],
       displayMath: [['$$','$$'], ['\\[','\\]']],
-      processEscapes: true
+      processEscapes: true,
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'details'],
+      ignoreClass: 'language-python|language-bash|highlight'
     },
     TeX: {
       equationNumbers: { autoNumber: "AMS" }
