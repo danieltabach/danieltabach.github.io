@@ -24,7 +24,7 @@ In this tutorial, we build a logistic regression model from scratch in R, unders
 
 **What we'll cover:**
 - Building and evaluating a logistic regression model
-- Understanding ROC curves and AUC
+- Understanding ROC curves and AUC in depth
 - Finding the "optimal" threshold with Youden's Index
 - Going beyond Youden: cost-based threshold optimization
 - When to use which approach
@@ -83,19 +83,15 @@ data_encoded$International_Employee_B <- ifelse(data_encoded$International_Emplo
 
 <details>
 <summary><strong>Why drop one dummy variable?</strong></summary>
-
 <p>If you have 3 categories (Red, Green, Blue), you only need 2 dummy columns. Why? Because if Red=0 and Green=0, you know it must be Blue.</p>
-
 <p>Keeping all 3 creates perfect multicollinearity: the third column is always determined by the first two. This breaks the math behind regression.</p>
-
-| Color | Red | Green | Blue (redundant) |
-|-------|-----|-------|------------------|
-| Red   | 1   | 0     | 0                |
-| Green | 0   | 1     | 0                |
-| Blue  | 0   | 0     | 1                |
-
+<table>
+<tr><th>Color</th><th>Red</th><th>Green</th><th>Blue (redundant)</th></tr>
+<tr><td>Red</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Green</td><td>0</td><td>1</td><td>0</td></tr>
+<tr><td>Blue</td><td>0</td><td>0</td><td>1</td></tr>
+</table>
 <p>With just Red and Green columns, Blue is implied when both are 0.</p>
-
 </details>
 
 ---
@@ -129,9 +125,27 @@ The model outputs probabilities between 0 and 1. To make actual predictions, we 
 
 ---
 
-## The ROC Curve
+## Understanding the ROC Curve
 
-The ROC (Receiver Operating Characteristic) curve shows every possible tradeoff between catching true positives and avoiding false positives. Each point on the curve represents a different threshold.
+The **ROC (Receiver Operating Characteristic) curve** is one of the most important tools for evaluating binary classifiers. It originated in World War II for analyzing radar signals (distinguishing enemy aircraft from noise), but it's now standard in machine learning.
+
+### What the ROC Curve Shows
+
+The ROC curve plots **True Positive Rate (TPR)** against **False Positive Rate (FPR)** at every possible threshold from 0 to 1.
+
+**True Positive Rate (Sensitivity/Recall):**
+
+$$TPR = \frac{TP}{TP + FN} = \frac{\text{Correctly identified positives}}{\text{All actual positives}}$$
+
+**False Positive Rate (1 - Specificity):**
+
+$$FPR = \frac{FP}{FP + TN} = \frac{\text{Incorrectly flagged negatives}}{\text{All actual negatives}}$$
+
+Each point on the curve represents a different threshold. As you lower the threshold:
+- You catch more true positives (TPR increases)
+- But you also get more false positives (FPR increases)
+
+The curve captures this tradeoff across all possible thresholds.
 
 ```r
 library(pROC)
@@ -144,40 +158,103 @@ abline(a = 0, b = 1, lty = 2, col = "gray")  # Random classifier baseline
 ![ROC Curve](/assets/images/posts/logistic-regression/roc-curve.png)
 *The ROC curve for our credit risk model. The diagonal represents random guessing (AUC = 0.5). Our curve shows the model performs better than random.*
 
-**How to read this:**
-- **X-axis (False Positive Rate):** The proportion of good customers incorrectly flagged as bad
-- **Y-axis (True Positive Rate):** The proportion of bad customers correctly identified
-- **The diagonal:** A random classifier that just flips a coin
-- **Area Under the Curve (AUC):** Summarizes performance in one number. Higher is better.
+### How to Read the ROC Curve
+
+**The Axes:**
+- **X-axis (False Positive Rate):** The proportion of good customers incorrectly flagged as bad. Lower is better.
+- **Y-axis (True Positive Rate):** The proportion of bad customers correctly identified. Higher is better.
+
+**Key Points on the Curve:**
+- **Bottom-left corner (0,0):** Threshold = 1.0. Predict everyone as negative. TPR = 0%, FPR = 0%.
+- **Top-right corner (1,1):** Threshold = 0.0. Predict everyone as positive. TPR = 100%, FPR = 100%.
+- **Top-left corner (0,1):** The perfect classifier. TPR = 100%, FPR = 0%.
+
+**The Diagonal Line:**
+A random classifier (coin flip) produces the diagonal. Any model worth using should have a curve above this line.
 
 <details>
 <summary><strong>See it with a tiny example</strong></summary>
-
 <p>Imagine 4 predictions with these probabilities and true labels:</p>
-
-| Sample | Probability | True Label |
-|--------|-------------|------------|
-| A      | 0.9         | 1 (bad)    |
-| B      | 0.7         | 1 (bad)    |
-| C      | 0.4         | 0 (good)   |
-| D      | 0.2         | 0 (good)   |
-
+<table>
+<tr><th>Sample</th><th>Probability</th><th>True Label</th></tr>
+<tr><td>A</td><td>0.9</td><td>1 (bad)</td></tr>
+<tr><td>B</td><td>0.7</td><td>1 (bad)</td></tr>
+<tr><td>C</td><td>0.4</td><td>0 (good)</td></tr>
+<tr><td>D</td><td>0.2</td><td>0 (good)</td></tr>
+</table>
 <p><strong>At threshold = 0.5:</strong></p>
 <ul>
 <li>Predict 1 for A, B (both correct = 2 True Positives)</li>
 <li>Predict 0 for C, D (both correct = 2 True Negatives)</li>
 <li>TPR = 2/2 = 100%, FPR = 0/2 = 0%</li>
+<li>This is the point (0, 1) on the ROC curve. Perfect!</li>
 </ul>
-
 <p><strong>At threshold = 0.8:</strong></p>
 <ul>
 <li>Only A gets predicted as 1</li>
 <li>B becomes a False Negative (we missed it)</li>
 <li>TPR = 1/2 = 50%, FPR = 0/2 = 0%</li>
+<li>This is the point (0, 0.5) on the ROC curve</li>
 </ul>
+<p><strong>At threshold = 0.3:</strong></p>
+<ul>
+<li>A, B, C all get predicted as 1</li>
+<li>C becomes a False Positive</li>
+<li>TPR = 2/2 = 100%, FPR = 1/2 = 50%</li>
+<li>This is the point (0.5, 1) on the ROC curve</li>
+</ul>
+<p>The ROC curve connects all these points as you sweep the threshold from 1 to 0.</p>
+</details>
 
-<p>The ROC curve plots all these tradeoffs as you sweep the threshold from 0 to 1.</p>
+### Understanding AUC (Area Under the Curve)
 
+The **AUC** summarizes the ROC curve in a single number between 0 and 1.
+
+**Interpretation:**
+
+$$AUC = P(\text{random positive ranked higher than random negative})$$
+
+If you pick a random positive sample and a random negative sample, the AUC is the probability that your model assigns a higher score to the positive one.
+
+| AUC Value | Interpretation |
+|-----------|----------------|
+| 0.5 | Random guessing (useless model) |
+| 0.6-0.7 | Poor discrimination |
+| 0.7-0.8 | Acceptable discrimination |
+| 0.8-0.9 | Excellent discrimination |
+| 0.9-1.0 | Outstanding discrimination |
+
+**Why AUC is Useful:**
+- It's **threshold-independent**: You can compare models without choosing a threshold
+- It's **scale-independent**: Works the same whether probabilities range from 0.1-0.2 or 0.4-0.9
+- It's **interpretable**: The probabilistic interpretation makes sense to stakeholders
+
+**Limitations of AUC:**
+- It treats all thresholds equally, even ones you'd never use in practice
+- It doesn't account for class imbalance well
+- It doesn't reflect business costs
+
+<details>
+<summary><strong>Calculating AUC manually</strong></summary>
+<p>AUC can be computed using the <strong>trapezoidal rule</strong>:</p>
+<ol>
+<li>Sort all predictions by threshold</li>
+<li>At each threshold, compute (FPR, TPR)</li>
+<li>Sum the trapezoid areas between consecutive points</li>
+</ol>
+<p><strong>Example with 4 samples:</strong></p>
+<p>Sorted by probability: A(0.9, y=1), B(0.7, y=1), C(0.4, y=0), D(0.2, y=0)</p>
+<p>As we lower the threshold:</p>
+<table>
+<tr><th>Threshold</th><th>TPR</th><th>FPR</th></tr>
+<tr><td>1.0</td><td>0/2 = 0</td><td>0/2 = 0</td></tr>
+<tr><td>0.9</td><td>1/2 = 0.5</td><td>0/2 = 0</td></tr>
+<tr><td>0.7</td><td>2/2 = 1.0</td><td>0/2 = 0</td></tr>
+<tr><td>0.4</td><td>2/2 = 1.0</td><td>1/2 = 0.5</td></tr>
+<tr><td>0.2</td><td>2/2 = 1.0</td><td>2/2 = 1.0</td></tr>
+</table>
+<p>The ROC curve goes: (0,0) → (0,0.5) → (0,1) → (0.5,1) → (1,1)</p>
+<p>AUC = area under this curve = 1.0 (perfect separation in this example)</p>
 </details>
 
 ---
@@ -186,7 +263,7 @@ abline(a = 0, b = 1, lty = 2, col = "gray")  # Random classifier baseline
 
 If you want a balanced tradeoff between sensitivity and specificity, Youden's Index helps. It finds the threshold that maximizes:
 
-$$J = \text{Sensitivity} + \text{Specificity} - 1$$
+$$J = \text{Sensitivity} + \text{Specificity} - 1 = TPR - FPR$$
 
 This is equivalent to finding the point on the ROC curve furthest from the diagonal.
 
@@ -210,6 +287,32 @@ print(paste("Optimal threshold (Youden):", round(optimal_threshold, 3)))
 ![Youden's Index](/assets/images/posts/logistic-regression/youden-optimal.png)
 *The red point marks the optimal threshold according to Youden's Index. This balances sensitivity and specificity equally.*
 
+<details>
+<summary><strong>Why Youden's Index works</strong></summary>
+<p>Youden's J statistic measures the maximum vertical distance from the ROC curve to the diagonal line.</p>
+<p><strong>The intuition:</strong></p>
+<ul>
+<li>At any threshold, Sensitivity + Specificity ranges from 0 to 2</li>
+<li>A random classifier has Sensitivity + Specificity = 1 (on the diagonal)</li>
+<li>Youden's J = (Sensitivity + Specificity) - 1 measures how much better than random</li>
+<li>The threshold that maximizes J gives the best balanced performance</li>
+</ul>
+<p><strong>Example calculation:</strong></p>
+<p>At threshold 0.4: Sensitivity = 0.85, Specificity = 0.70</p>
+<ul>
+<li>J = 0.85 + 0.70 - 1 = 0.55</li>
+</ul>
+<p>At threshold 0.5: Sensitivity = 0.75, Specificity = 0.80</p>
+<ul>
+<li>J = 0.75 + 0.80 - 1 = 0.55</li>
+</ul>
+<p>At threshold 0.6: Sensitivity = 0.60, Specificity = 0.85</p>
+<ul>
+<li>J = 0.60 + 0.85 - 1 = 0.45</li>
+</ul>
+<p>In this example, thresholds 0.4 and 0.5 are equally optimal by Youden's criterion.</p>
+</details>
+
 ---
 
 ## The Confusion Matrix
@@ -227,13 +330,11 @@ print(confusion_matrix)
 
 <details>
 <summary><strong>Reading the confusion matrix</strong></summary>
-
 <table>
 <tr><th></th><th>Actual 0 (Good)</th><th>Actual 1 (Bad)</th></tr>
 <tr><td><strong>Predicted 0</strong></td><td>True Negative (TN)</td><td>False Negative (FN)</td></tr>
 <tr><td><strong>Predicted 1</strong></td><td>False Positive (FP)</td><td>True Positive (TP)</td></tr>
 </table>
-
 <p><strong>From our model:</strong></p>
 <ul>
 <li><strong>TN:</strong> Good customers correctly approved</li>
@@ -241,14 +342,14 @@ print(confusion_matrix)
 <li><strong>FN:</strong> Bad customers incorrectly approved (defaults!)</li>
 <li><strong>TP:</strong> Bad customers correctly denied</li>
 </ul>
-
-<p><strong>Key metrics:</strong></p>
+<p><strong>Key metrics derived from the confusion matrix:</strong></p>
 <ul>
-<li>Accuracy = (TN + TP) / Total</li>
+<li>Accuracy = (TN + TP) / (TN + FP + FN + TP)</li>
 <li>Precision = TP / (TP + FP)</li>
-<li>Recall = TP / (TP + FN)</li>
+<li>Recall (Sensitivity) = TP / (TP + FN)</li>
+<li>Specificity = TN / (TN + FP)</li>
+<li>F1 Score = 2 × (Precision × Recall) / (Precision + Recall)</li>
 </ul>
-
 </details>
 
 ---
@@ -369,11 +470,13 @@ Different business problems have different cost structures:
 
 2. **The ROC curve shows all possible thresholds** and their tradeoffs between true positive rate and false positive rate.
 
-3. **Youden's Index finds a balanced threshold**, but assumes equal costs for both types of errors.
+3. **AUC summarizes model performance** in a single number: the probability that a random positive is ranked higher than a random negative.
 
-4. **Cost-based optimization** finds the threshold that minimizes actual business cost. This is what you should use in production.
+4. **Youden's Index finds a balanced threshold**, but assumes equal costs for both types of errors.
 
-5. **Always define your costs first**. Talk to stakeholders. What does a false positive cost? A false negative? The math is easy once you know the numbers.
+5. **Cost-based optimization** finds the threshold that minimizes actual business cost. This is what you should use in production.
+
+6. **Always define your costs first**. Talk to stakeholders. What does a false positive cost? A false negative? The math is easy once you know the numbers.
 
 ---
 
@@ -382,8 +485,7 @@ Different business problems have different cost structures:
 <details>
 <summary><strong>Full Implementation</strong></summary>
 
-```r
-# ============================================
+<pre><code class="language-r"># ============================================
 # Logistic Regression with Cost-Based Thresholds
 # ============================================
 
@@ -459,7 +561,7 @@ final_predictions <- ifelse(predicted_probs > cost_optimal, 1, 0)
 final_cm <- table(Predicted = final_predictions, Actual = validation_data$Target)
 print("Final Confusion Matrix:")
 print(final_cm)
-```
+</code></pre>
 
 </details>
 

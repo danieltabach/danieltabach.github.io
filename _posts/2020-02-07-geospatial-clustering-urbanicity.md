@@ -282,8 +282,7 @@ For the `ggmap` package, you'll need a Google Maps API key. See the [ggmap docum
 <details>
 <summary><strong>Full Implementation</strong></summary>
 
-```r
-# ============================================
+<pre><code class="language-r"># ============================================
 # Measuring Urbanicity with Hospital Distances
 # ============================================
 
@@ -387,7 +386,7 @@ print(table(hospitals$Class_Single))
 
 print("\nK-Nearest Classification (k=5):")
 print(table(hospitals$Class_KNearest))
-```
+</code></pre>
 
 </details>
 
