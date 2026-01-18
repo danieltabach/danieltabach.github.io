@@ -268,7 +268,9 @@ This approach has real limitations:
 
 ## Data Sources
 
-The hospital data used in this analysis is from the [Homeland Infrastructure Foundation-Level Data (HIFLD)](https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals) open data portal. Similar datasets are available from:
+The hospital data used in this analysis was originally from the Homeland Infrastructure Foundation-Level Data (HIFLD) open data portal, but that link has since expired. A similar dataset is available from [Rearc on the Databricks Marketplace](https://dbc-6703f9ed-77e2.cloud.databricks.com/marketplace/consumer/listings/ca74bbd1-cafb-4b5a-9938-16bfd5a8b613).
+
+Other sources for hospital location data:
 - [CMS Hospital Compare](https://data.cms.gov/)
 - [AHA Annual Survey](https://www.ahadata.com/)
 - [Definitive Healthcare](https://www.definitivehc.com/)
