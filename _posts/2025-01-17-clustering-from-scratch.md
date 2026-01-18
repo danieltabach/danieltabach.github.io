@@ -57,6 +57,34 @@ K-Means uses an iterative refinement approach:
 
 Why does this work? Each step either decreases the objective $J$ or leaves it unchanged. Assigning points to their nearest centroid minimizes distances given fixed centroids. Updating centroids to cluster means minimizes distances given fixed assignments. Since $J$ is bounded below by zero and decreases monotonically, the algorithm must converge.
 
+<details>
+<summary><strong>See it with a tiny example</strong></summary>
+
+6 points in 2D, finding k=2 clusters:
+
+| Point | X | Y |
+|-------|---|---|
+| A | 1 | 1 |
+| B | 2 | 1 |
+| C | 1 | 2 |
+| D | 8 | 8 |
+| E | 9 | 8 |
+| F | 8 | 9 |
+
+**Iteration 1:**
+- Random centroids: C1=(1,1), C2=(9,8)
+- Assign: A,B,C → C1 (closer), D,E,F → C2
+- Update: C1 = mean(A,B,C) = (1.33, 1.33), C2 = mean(D,E,F) = (8.33, 8.33)
+
+**Iteration 2:**
+- Assign: same assignments (centroids barely moved)
+- Update: same centroids
+- **Converged!**
+
+Final clusters: {A,B,C} and {D,E,F}
+
+</details>
+
 ### Implementation
 
 Let's build it piece by piece.
@@ -351,6 +379,48 @@ Given a graph with $n$ nodes:
 
 3. **Graph Laplacian**: $L = D - A$
 
+<details>
+<summary><strong>See it with a tiny example</strong></summary>
+
+Consider 4 nodes with this connection pattern:
+
+```
+1 --- 2
+|     |
+3 --- 4
+```
+
+**Adjacency matrix A** (who connects to whom):
+
+|   | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| 1 | 0 | 1 | 1 | 0 |
+| 2 | 1 | 0 | 0 | 1 |
+| 3 | 1 | 0 | 0 | 1 |
+| 4 | 0 | 1 | 1 | 0 |
+
+**Degree matrix D** (count of connections per node):
+
+|   | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| 1 | 2 | 0 | 0 | 0 |
+| 2 | 0 | 2 | 0 | 0 |
+| 3 | 0 | 0 | 2 | 0 |
+| 4 | 0 | 0 | 0 | 2 |
+
+**Laplacian L = D - A**:
+
+|   | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| 1 | 2 | -1 | -1 | 0 |
+| 2 | -1 | 2 | 0 | -1 |
+| 3 | -1 | 0 | 2 | -1 |
+| 4 | 0 | -1 | -1 | 2 |
+
+Notice: each row sums to 0. The diagonal shows the degree, off-diagonal shows negative connections.
+
+</details>
+
 **Code:**
 
 ```python
@@ -388,6 +458,28 @@ This is where it gets interesting.
 The smallest eigenvalue of the Laplacian is always 0, with a constant eigenvector (all ones). This is not useful for clustering.
 
 The second smallest eigenvalue is called the Fiedler value. Its eigenvector, the Fiedler vector, contains cluster information. Points with similar values in the Fiedler vector belong to the same cluster.
+
+<details>
+<summary><strong>See it with a tiny example</strong></summary>
+
+Using the same 4-node graph, here are the Laplacian's eigenvectors:
+
+| Eigenvalue | Eigenvector | Interpretation |
+|------------|-------------|----------------|
+| 0 | [0.5, 0.5, 0.5, 0.5] | Constant (useless) |
+| 2 | [0.5, -0.5, -0.5, 0.5] | **Fiedler vector** |
+| 2 | [0.5, -0.5, 0.5, -0.5] | Third eigenvector |
+| 4 | [0.5, 0.5, -0.5, -0.5] | Fourth eigenvector |
+
+**The Fiedler vector** [0.5, -0.5, -0.5, 0.5] groups:
+- Nodes 1 and 4 together (positive values)
+- Nodes 2 and 3 together (negative values)
+
+This matches the graph structure: 1-4 are diagonal partners, 2-3 are diagonal partners.
+
+For k=2 clusters: take the sign of the Fiedler vector → Cluster A: {1,4}, Cluster B: {2,3}
+
+</details>
 
 For $k$ clusters, we use the $k$ smallest eigenvectors. We stack them into an $n \times k$ matrix, where each row represents a node. Then we run K-Means on these rows.
 

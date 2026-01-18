@@ -58,6 +58,43 @@ The optimal $w$ is an **eigenvector** of the covariance matrix, and $\lambda$ (t
 
 **The key insight**: To get the first principal component, find the eigenvector with the largest eigenvalue. For the second PC, take the eigenvector with the second-largest eigenvalue. And so on.
 
+<details>
+<summary><strong>See it with a tiny example</strong></summary>
+
+Say we have 4 data points with 3 features each (4×3 matrix):
+
+| Point | Height | Weight | Age |
+|-------|--------|--------|-----|
+| A | 5 | 150 | 25 |
+| B | 6 | 180 | 30 |
+| C | 5.5 | 160 | 28 |
+| D | 6.5 | 200 | 35 |
+
+**Step 1: Center the data** (subtract column means)
+
+| Point | Height | Weight | Age |
+|-------|--------|--------|-----|
+| A | -0.75 | -22.5 | -4.5 |
+| B | 0.25 | 7.5 | 0.5 |
+| C | -0.25 | -12.5 | -1.5 |
+| D | 0.75 | 27.5 | 5.5 |
+
+**Step 2: Covariance matrix** (3×3, one entry per feature pair)
+
+|  | Height | Weight | Age |
+|--|--------|--------|-----|
+| Height | 0.42 | 17.5 | 3.5 |
+| Weight | 17.5 | 758.3 | 145.8 |
+| Age | 3.5 | 145.8 | 29.2 |
+
+The diagonal shows variance of each feature. Off-diagonal shows how features co-vary.
+
+**Step 3: Eigenvectors point in directions of maximum spread**
+
+The eigenvector with the largest eigenvalue points roughly in the Weight direction (since Weight has the most variance). Projecting onto this eigenvector gives PC1.
+
+</details>
+
 ### Implementation
 
 ```python
@@ -219,6 +256,41 @@ Use shortest-path algorithms (like Dijkstra's) to find the distance between ever
 **Step 3: Apply MDS**
 
 Multidimensional Scaling takes a distance matrix and finds low-dimensional coordinates that preserve those distances. This is where the actual dimensionality reduction happens.
+
+<details>
+<summary><strong>See it with a tiny example</strong></summary>
+
+Say we have 5 points on a curved path. Euclidean distances vs geodesic distances:
+
+**Euclidean distance matrix** (straight-line):
+
+|   | A | B | C | D | E |
+|---|---|---|---|---|---|
+| A | 0 | 1 | 2 | 2 | 1 |
+| B | 1 | 0 | 1 | 2 | 2 |
+| C | 2 | 1 | 0 | 1 | 2 |
+| D | 2 | 2 | 1 | 0 | 1 |
+| E | 1 | 2 | 2 | 1 | 0 |
+
+Points A and E look close (distance=1) because they're near each other in space.
+
+**Neighborhood graph** (epsilon=1.5, only keep edges ≤ 1.5):
+
+A—B—C—D—E and A—E (the shortcut)
+
+**Geodesic distance matrix** (shortest path along graph):
+
+|   | A | B | C | D | E |
+|---|---|---|---|---|---|
+| A | 0 | 1 | 2 | 3 | 1 |
+| B | 1 | 0 | 1 | 2 | 2 |
+| C | 2 | 1 | 0 | 1 | 2 |
+| D | 3 | 2 | 1 | 0 | 1 |
+| E | 1 | 2 | 2 | 1 | 0 |
+
+Now A to D = 3 (must walk A→B→C→D), preserving the path structure.
+
+</details>
 
 ### Implementation
 
