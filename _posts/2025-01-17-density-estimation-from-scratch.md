@@ -5,6 +5,8 @@ date: 2025-01-17
 categories: [from-scratch]
 tags: [machine-learning, density-estimation, kde, gmm, em-algorithm, python, numpy]
 author_profile: true
+header:
+  teaser: /assets/images/posts/density-estimation/brain-2d-kde.png
 toc: true
 toc_label: "Contents"
 toc_sticky: true

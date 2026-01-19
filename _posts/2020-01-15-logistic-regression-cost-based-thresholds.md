@@ -5,6 +5,8 @@ date: 2020-01-15
 categories: [applied]
 tags: [r, classification, logistic-regression, roc-curve, threshold-optimization]
 author_profile: true
+header:
+  teaser: /assets/images/posts/logistic-regression/roc-curve.png
 toc: true
 toc_label: "Contents"
 toc_sticky: true

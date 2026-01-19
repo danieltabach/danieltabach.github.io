@@ -5,6 +5,8 @@ date: 2025-01-17
 categories: [from-scratch]
 tags: [clustering, machine-learning, python, numpy, spectral-clustering]
 author_profile: true
+header:
+  teaser: /assets/images/posts/clustering/compressed_shrek_cluster_12.png
 toc: true
 toc_label: "Contents"
 toc_sticky: true

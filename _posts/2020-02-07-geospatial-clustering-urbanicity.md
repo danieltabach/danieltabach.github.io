@@ -5,6 +5,8 @@ date: 2020-02-07
 categories: [applied]
 tags: [r, geospatial, clustering, ggmap, data-visualization]
 author_profile: true
+header:
+  teaser: /assets/images/posts/urbanicity/us-hospitals-overview.png
 toc: true
 toc_label: "Contents"
 toc_sticky: true

@@ -5,6 +5,8 @@ date: 2025-01-17
 categories: [from-scratch]
 tags: [machine-learning, dimensionality-reduction, pca, isomap, eigenfaces, python, numpy]
 author_profile: true
+header:
+  teaser: /assets/images/posts/dimensionality-reduction/eigenfaces-subject1.png
 toc: true
 toc_label: "Contents"
 toc_sticky: true
