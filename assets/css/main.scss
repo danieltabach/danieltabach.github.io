@@ -13,17 +13,3 @@
 .author__content {
   background-color: #252a34;
 }
-
-// Fix thumbnail black bars - force square thumbnails with cropped images
-.archive__item-teaser {
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  background: transparent;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-  }
-}
