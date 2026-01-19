@@ -5,7 +5,6 @@ date: 2025-01-17
 categories: [from-scratch]
 tags: [clustering, machine-learning, python, numpy, spectral-clustering]
 author_profile: true
-classes: wide
 toc: true
 toc_label: "Contents"
 toc_sticky: true

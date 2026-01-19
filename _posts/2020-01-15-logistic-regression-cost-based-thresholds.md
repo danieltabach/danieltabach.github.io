@@ -5,7 +5,6 @@ date: 2020-01-15
 categories: [applied]
 tags: [r, classification, logistic-regression, roc-curve, threshold-optimization]
 author_profile: true
-classes: wide
 toc: true
 toc_label: "Contents"
 toc_sticky: true

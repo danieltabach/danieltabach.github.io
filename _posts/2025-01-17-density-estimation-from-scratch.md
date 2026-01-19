@@ -5,7 +5,6 @@ date: 2025-01-17
 categories: [from-scratch]
 tags: [machine-learning, density-estimation, kde, gmm, em-algorithm, python, numpy]
 author_profile: true
-classes: wide
 toc: true
 toc_label: "Contents"
 toc_sticky: true
