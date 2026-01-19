@@ -42,7 +42,7 @@ classes: wide
   height: 80px;
   border-radius: 6px;
   overflow: hidden;
-  background: #1a1a1a;
+  background: transparent;
 }
 .work-thumbnail img {
   width: 100%;
