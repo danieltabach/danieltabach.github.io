@@ -2,7 +2,7 @@
 layout: single
 title: "Clustering Algorithms From Scratch"
 date: 2025-01-17
-categories: [tutorials]
+categories: [from-scratch]
 tags: [clustering, machine-learning, python, numpy, spectral-clustering]
 author_profile: true
 toc: true

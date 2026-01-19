@@ -2,7 +2,7 @@
 layout: single
 title: "Density Estimation and Mixture Models From Scratch"
 date: 2025-01-17
-categories: [tutorials]
+categories: [from-scratch]
 tags: [machine-learning, density-estimation, kde, gmm, em-algorithm, python, numpy]
 author_profile: true
 toc: true

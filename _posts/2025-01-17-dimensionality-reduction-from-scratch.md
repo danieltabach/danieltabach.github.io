@@ -2,7 +2,7 @@
 layout: single
 title: "Dimensionality Reduction From Scratch: PCA, ISOMAP, and Eigenfaces"
 date: 2025-01-17
-categories: [tutorials]
+categories: [from-scratch]
 tags: [machine-learning, dimensionality-reduction, pca, isomap, eigenfaces, python, numpy]
 author_profile: true
 toc: true

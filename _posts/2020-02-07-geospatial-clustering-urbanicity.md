@@ -2,7 +2,7 @@
 layout: single
 title: "Measuring Urbanicity with Hospital Data: A Distance-Based Approach"
 date: 2020-02-07
-categories: [practical-ml]
+categories: [applied]
 tags: [r, geospatial, clustering, ggmap, data-visualization]
 author_profile: true
 toc: true

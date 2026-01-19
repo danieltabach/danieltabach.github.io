@@ -2,7 +2,7 @@
 layout: single
 title: "Classification Algorithms From Scratch"
 date: 2025-01-17
-categories: [tutorials]
+categories: [from-scratch]
 tags: [classification, machine-learning, logistic-regression, naive-bayes, python, numpy]
 author_profile: true
 toc: true

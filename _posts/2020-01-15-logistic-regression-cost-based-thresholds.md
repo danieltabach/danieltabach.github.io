@@ -2,7 +2,7 @@
 layout: single
 title: "Beyond Accuracy: Picking the Right Threshold When Costs Aren't Equal"
 date: 2020-01-15
-categories: [practical-ml]
+categories: [applied]
 tags: [r, classification, logistic-regression, roc-curve, threshold-optimization]
 author_profile: true
 toc: true
