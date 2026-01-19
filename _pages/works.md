@@ -38,8 +38,8 @@ classes: wide
 }
 .work-thumbnail {
   flex-shrink: 0;
-  width: 80px;
-  height: 80px;
+  width: 150px;
+  height: 150px;
   border-radius: 6px;
   overflow: hidden;
   background: transparent;
