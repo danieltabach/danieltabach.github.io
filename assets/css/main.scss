@@ -18,25 +18,32 @@
   max-width: 100%;
 }
 
-// Fix sidebar overlap issue
+// Fix sidebar overlap issue - z-index requires position
 .sidebar {
-  z-index: 10;
-}
-
-.page__content {
-  z-index: 1;
-}
-
-.sidebar__right {
-  z-index: 10;
-}
-
-.author__avatar {
-  z-index: 10;
+  position: relative;
+  z-index: 100;
+  background-color: #252a34; // Match dark theme background
 }
 
 .sidebar.sticky {
-  position: sticky;
+  position: sticky !important;
   top: 2rem;
   z-index: 100;
+}
+
+.author__content,
+.author__urls-wrapper {
+  position: relative;
+  z-index: 100;
+}
+
+.page__content {
+  position: relative;
+  z-index: 1;
+}
+
+// Ensure the main content area doesn't overlap sidebar
+.page__inner-wrap {
+  position: relative;
+  z-index: 1;
 }
