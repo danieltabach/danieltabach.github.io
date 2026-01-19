@@ -14,12 +14,18 @@
   background-color: #252a34;
 }
 
-// Fix thumbnail black bars - make images fill and crop instead of letterbox
+// Fix thumbnail black bars
 .archive__item-teaser {
+  background-color: transparent !important;
+  background: none !important;
+  position: relative;
+  overflow: hidden;
+
   img {
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
+    object-fit: cover !important;
+    object-position: center center !important;
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 
