@@ -17,3 +17,26 @@
 .wide {
   max-width: 100%;
 }
+
+// Fix sidebar overlap issue
+.sidebar {
+  z-index: 10;
+}
+
+.page__content {
+  z-index: 1;
+}
+
+.sidebar__right {
+  z-index: 10;
+}
+
+.author__avatar {
+  z-index: 10;
+}
+
+.sidebar.sticky {
+  position: sticky;
+  top: 2rem;
+  z-index: 100;
+}
