@@ -5,45 +5,11 @@
 @import "minimal-mistakes/skins/dark";
 @import "minimal-mistakes";
 
-// Widen the main content area
-.page {
-  width: 100%;
-}
-
-.page__content {
-  max-width: 1200px;
-}
-
-.wide {
-  max-width: 100%;
-}
-
-// Fix sidebar overlap issue - z-index requires position
+// Sidebar background for dark theme
 .sidebar {
-  position: relative;
-  z-index: 100;
-  background-color: #252a34; // Match dark theme background
+  background-color: #252a34;
 }
 
-.sidebar.sticky {
-  position: sticky !important;
-  top: 2rem;
-  z-index: 100;
-}
-
-.author__content,
-.author__urls-wrapper {
-  position: relative;
-  z-index: 100;
-}
-
-.page__content {
-  position: relative;
-  z-index: 1;
-}
-
-// Ensure the main content area doesn't overlap sidebar
-.page__inner-wrap {
-  position: relative;
-  z-index: 1;
+.author__content {
+  background-color: #252a34;
 }
