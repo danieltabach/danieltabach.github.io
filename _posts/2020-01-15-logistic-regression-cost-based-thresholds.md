@@ -566,7 +566,3 @@ print(final_cm)
 </code></pre>
 
 </details>
-
----
-
-*PS: This tutorial is a remaster of work I did in early 2020, before I started my first data science role. I've cleaned up the code and explanations, but kept the core analysis intact. The original was rough around the edges, but it taught me a lot about translating ideas into working code.*

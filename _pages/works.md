@@ -48,6 +48,7 @@ classes: wide
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
 }
 .work-content {
   flex: 1;
@@ -101,6 +102,7 @@ classes: wide
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
 }
 .viz-card-body {
   padding: 1rem;
