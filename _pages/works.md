@@ -11,7 +11,7 @@ classes: wide
   margin-bottom: 3rem;
 }
 .work-section h2 {
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid #ddd;
   padding-bottom: 0.5rem;
   margin-bottom: 0.5rem;
 }
@@ -31,7 +31,7 @@ classes: wide
   gap: 1rem;
   margin-bottom: 1.25rem;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #ddd;
 }
 .work-list li:last-child {
   border-bottom: none;
@@ -66,8 +66,8 @@ classes: wide
 }
 .work-tags span {
   display: inline-block;
-  background: #333;
-  color: #ccc;
+  background: #e9ecef;
+  color: #495057;
   padding: 0.15rem 0.5rem;
   border-radius: 3px;
   font-size: 0.75em;
@@ -80,13 +80,13 @@ classes: wide
   gap: 1.5rem;
 }
 .viz-card {
-  border: 1px solid #444;
+  border: 1px solid #ddd;
   border-radius: 6px;
   overflow: hidden;
   transition: border-color 0.2s;
 }
 .viz-card:hover {
-  border-color: #666;
+  border-color: #aaa;
 }
 .viz-card a {
   text-decoration: none;
@@ -95,7 +95,7 @@ classes: wide
 .viz-card-img {
   width: 100%;
   height: 140px;
-  background: #1a1a1a;
+  background: #f5f5f5;
   overflow: hidden;
 }
 .viz-card-img img {
@@ -114,14 +114,14 @@ classes: wide
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  background: #1a1a1a;
-  border: 1px solid #444;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
   border-radius: 6px;
   padding: 1.25rem;
   margin-top: 1rem;
 }
 .standalone-project .work-thumbnail {
-  background: #252a34;
+  background: #e9ecef;
 }
 .standalone-project .work-content h4 {
   margin: 0 0 0.25rem 0;
@@ -191,7 +191,7 @@ classes: wide
 </ul>
 
 <div class="standalone-project">
-  <div class="work-thumbnail" style="background: #252a34; display: flex; align-items: center; justify-content: center; color: #666; font-size: 1.5em;">
+  <div class="work-thumbnail" style="background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #666; font-size: 1.5em;">
     <span>📊</span>
   </div>
   <div class="work-content">

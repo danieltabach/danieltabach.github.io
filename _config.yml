@@ -12,7 +12,7 @@ repository: "danieltabach/danieltabach.github.io"
 
 # Social
 github_username: danieltabach
-minimal_mistakes_skin: "dark"
+minimal_mistakes_skin: "default"
 search: true
 
 # Build settings
@@ -28,6 +28,10 @@ timezone: America/New_York
 include:
   - _pages
 
+exclude:
+  - nul
+  - _preview.html
+
 # Plugins
 plugins:
   - jekyll-paginate
@@ -41,8 +45,7 @@ plugins:
 author:
   name   : "Danny Tabach"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Senior Data Scientist at JPMorgan Chase. Full-stack: data to models to presentations. MS Analytics at Georgia Tech."
-  location: "New York"
+  bio    : "Data Scientist at JPMorgan"
   links:
     - label: "GitHub"
       icon: "fab fa-fw fa-github"

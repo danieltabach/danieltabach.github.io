@@ -8,13 +8,22 @@
       inlineMath: [['$','$'], ['\\(','\\)']],
       displayMath: [['$$','$$'], ['\\[','\\]']],
       processEscapes: true,
-      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'details'],
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
       ignoreClass: 'language-python|language-bash|highlight'
     },
     TeX: {
       equationNumbers: { autoNumber: "AMS" }
     }
   });
+</script>
+
+<!-- Re-typeset MathJax when a collapsible details block is opened -->
+<script>
+  document.addEventListener('toggle', function(e) {
+    if (e.target.tagName === 'DETAILS' && e.target.open) {
+      if (window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, e.target]);
+    }
+  }, true);
 </script>
 
 <!-- Custom styles for blog posts -->

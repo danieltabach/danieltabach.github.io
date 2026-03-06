@@ -584,7 +584,7 @@ def plot_parallel_trends(data, output_path):
 
     ax.legend(loc='upper left', fontsize=11)
     ax.grid(True, alpha=0.3)
-    ax.set_ylim([50, 58])
+    # Let matplotlib auto-scale the Y-axis to avoid exaggerating divergence
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -663,16 +663,29 @@ def run_naive_cutoff_did(data):
 
 def run_naive_twfe(data):
     """
-    Standard two-way fixed effects regression — the default approach.
-    Single treatment indicator (post × treatment), location FE, time FE.
+    Standard two-way fixed effects regression with individual treatment timing.
+    Each treatment location's 'post' indicator uses its own first_completion date.
+    Single treatment coefficient (post × treatment), location FE, time FE.
 
-    This is what Callaway & Sant'Anna showed can be biased under staggered timing.
+    This is what Callaway & Sant'Anna showed can be biased under staggered timing
+    because already-treated locations serve as implicit controls for later adopters.
     """
-    # Create a simple post-treatment indicator using calendar time
     median_cutoff = int(data[data['treatment'] == 1]['first_completion'].median())
 
     reg_data = data.copy()
-    reg_data['post'] = (reg_data['month'] >= median_cutoff).astype(int)
+
+    # Key difference from naive: each treatment location uses its OWN adoption date
+    reg_data['post'] = 0
+    treat_mask = reg_data['treatment'] == 1
+    reg_data.loc[treat_mask, 'post'] = (
+        reg_data.loc[treat_mask, 'month'] >= reg_data.loc[treat_mask, 'first_completion']
+    ).astype(int)
+    # Control locations use median cutoff (they have no treatment date)
+    ctrl_mask = reg_data['treatment'] == 0
+    reg_data.loc[ctrl_mask, 'post'] = (
+        reg_data.loc[ctrl_mask, 'month'] >= median_cutoff
+    ).astype(int)
+
     reg_data['treat_post'] = reg_data['treatment'] * reg_data['post']
 
     # Fixed effects
@@ -780,6 +793,88 @@ def plot_treatment_vs_control(data, output_path):
     print(f"Saved: {output_path}")
 
 
+def plot_control_comparison(data, output_path):
+    """
+    Mini-example showing how treatment locations at different event times
+    are compared to the control group at the SAME calendar month.
+    Illustrates the concurrent calendar-time comparison.
+    """
+    setup_plot_style()
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    # Pick 3 treatment locations with different adoption timings
+    treat_locs = data[data['treatment'] == 1]
+    unique_locs = treat_locs.groupby('location_id')['first_completion'].first()
+    # Find locations with early, mid, and late adoption
+    sorted_locs = unique_locs.sort_values()
+    early_loc = sorted_locs.iloc[int(len(sorted_locs) * 0.15)]
+    mid_loc = sorted_locs.iloc[int(len(sorted_locs) * 0.5)]
+    late_loc = sorted_locs.iloc[int(len(sorted_locs) * 0.85)]
+
+    early_id = sorted_locs[sorted_locs == early_loc].index[0]
+    mid_id = sorted_locs[sorted_locs == mid_loc].index[0]
+    late_id = sorted_locs[sorted_locs == late_loc].index[0]
+
+    example_locs = [(early_id, '#4A90E2', 'Location A'),
+                    (mid_id, '#77DD77', 'Location B'),
+                    (late_id, '#E8827C', 'Location C')]
+
+    # Plot control group average
+    ctrl_avg = data[data['treatment'] == 0].groupby('month')['metric'].mean()
+    ax.plot(ctrl_avg.index, ctrl_avg.values, linewidth=3, color='#999999',
+            label='Control Group Average', zorder=3, marker='s', markersize=5)
+
+    # Plot each example treatment location
+    for loc_id, color, label in example_locs:
+        loc_data = data[data['location_id'] == loc_id].sort_values('month')
+        fc = int(loc_data['first_completion'].iloc[0])
+
+        ax.plot(loc_data['month'], loc_data['metric'], linewidth=2, color=color,
+                label=f'{label} (adopted Month {fc})', alpha=0.8, marker='o', markersize=4)
+
+        # Draw arrows from treatment location's post-period to control at same month
+        # Show 2 example comparisons per location (at fc+1 and fc+3)
+        for offset in [1, 3]:
+            compare_month = fc + offset
+            if compare_month > 24:
+                continue
+            treat_val = loc_data[loc_data['month'] == compare_month]['metric'].values
+            ctrl_val = ctrl_avg.get(compare_month)
+            if len(treat_val) > 0 and ctrl_val is not None:
+                # Vertical arrow between treatment and control
+                ax.annotate('', xy=(compare_month, treat_val[0]),
+                           xytext=(compare_month, ctrl_val),
+                           arrowprops=dict(arrowstyle='<->', color=color,
+                                          lw=1.5, alpha=0.6))
+
+        # Mark adoption point
+        adoption_val = loc_data[loc_data['month'] == fc]['metric'].values
+        if len(adoption_val) > 0:
+            ax.scatter(fc, adoption_val[0], s=120, marker='*', color=color,
+                      edgecolors='black', linewidths=1, zorder=10)
+
+    # Add annotation explaining the arrows
+    ax.annotate('Arrows = DiD comparison\nat the same calendar month',
+               xy=(20, ctrl_avg.iloc[-5] - 1),
+               fontsize=10, fontstyle='italic', color='#555555',
+               ha='center',
+               bbox=dict(boxstyle='round,pad=0.4',
+                        facecolor='#E8F4FD', alpha=0.9))
+
+    ax.set_xlabel('Calendar Month', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Metric Value', fontsize=12, fontweight='bold')
+    ax.set_title('How Treatment Compares to Control: Same Calendar Month, Different Adoption Times',
+                fontsize=13, fontweight='bold', pad=15)
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
 def plot_method_comparison(naive_cutoff, twfe_estimate, event_study_avg, true_effect, output_path):
     """
     Bar chart comparing the three estimation approaches against the true effect.
@@ -812,6 +907,121 @@ def plot_method_comparison(naive_cutoff, twfe_estimate, event_study_avg, true_ef
     ax.set_ylim([0, max(estimates + [true_effect]) * 1.35])
 
     plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+def plot_method_lift_comparison(data, output_path):
+    """
+    Three-panel figure (stacked vertically) showing treatment vs control
+    for each methodology. Each panel gets full width for readability.
+    """
+    setup_plot_style()
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 16))
+    fig.subplots_adjust(hspace=0.35)
+
+    median_cutoff = int(data[data['treatment'] == 1]['first_completion'].median())
+
+    # Aggregate by month and treatment
+    agg_cal = data.groupby(['month', 'treatment'])['metric'].mean().reset_index()
+    treat_cal = agg_cal[agg_cal['treatment'] == 1]
+    ctrl_cal = agg_cal[agg_cal['treatment'] == 0]
+
+    # --- Panel A: Naive Calendar Cutoff ---
+    ax1.plot(treat_cal['month'], treat_cal['metric'], marker='o', linewidth=2.5,
+            markersize=6, color='#4A90E2', label='Treatment (all locations pooled)')
+    ax1.plot(ctrl_cal['month'], ctrl_cal['metric'], marker='s', linewidth=2.5,
+            markersize=6, color='#999999', label='Control')
+    ax1.axvline(x=median_cutoff, color='red', linestyle='--', alpha=0.7,
+               linewidth=2, label=f'Single Cutoff (Month {median_cutoff})')
+    ax1.set_xlabel('Calendar Month', fontsize=11, fontweight='bold')
+    ax1.set_ylabel('Average Metric', fontsize=11, fontweight='bold')
+    ax1.set_title('A: Naive Calendar Cutoff — One line for all treatment locations, one arbitrary split',
+                 fontsize=12, fontweight='bold', pad=10)
+    ax1.legend(loc='upper left', fontsize=10)
+    ax1.grid(True, alpha=0.3)
+
+    # --- Panel B: TWFE (split early vs late adopters) ---
+    treat_locs_data = data[data['treatment'] == 1]
+    median_fc = treat_locs_data['first_completion'].median()
+
+    early_ids = treat_locs_data[
+        treat_locs_data['first_completion'] <= median_fc
+    ]['location_id'].unique()
+    late_ids = treat_locs_data[
+        treat_locs_data['first_completion'] > median_fc
+    ]['location_id'].unique()
+
+    early_agg = data[data['location_id'].isin(early_ids)].groupby(
+        'month')['metric'].mean()
+    late_agg = data[data['location_id'].isin(late_ids)].groupby(
+        'month')['metric'].mean()
+
+    ax2.plot(ctrl_cal['month'], ctrl_cal['metric'], marker='s',
+            linewidth=2.5, markersize=6, color='#999999', label='Control')
+    ax2.plot(early_agg.index, early_agg.values, marker='o',
+            linewidth=2.5, markersize=6, color='#4A90E2',
+            label='Early Adopters (adopted before median)')
+    ax2.plot(late_agg.index, late_agg.values, marker='^',
+            linewidth=2.5, markersize=6, color='#E8827C',
+            label='Late Adopters (adopted after median)')
+
+    # Mark the early and late median adoption points
+    early_med = int(data[data['location_id'].isin(early_ids)][
+        'first_completion'].median())
+    late_med = int(data[data['location_id'].isin(late_ids)][
+        'first_completion'].median())
+    ax2.axvline(x=early_med, color='#4A90E2', linestyle='--',
+               alpha=0.5, linewidth=1.5, label=f'Early median (Month {early_med})')
+    ax2.axvline(x=late_med, color='#E8827C', linestyle='--',
+               alpha=0.5, linewidth=1.5, label=f'Late median (Month {late_med})')
+
+    # Shade the problematic region where early adopters act as controls
+    ax2.axvspan(early_med, late_med, alpha=0.08, color='orange')
+    ax2.annotate('Early adopters already treated here,\nbut TWFE uses them as implicit\ncomparisons for late adopters',
+                xy=((early_med + late_med) / 2, ctrl_cal['metric'].iloc[0]),
+                fontsize=9, fontstyle='italic', color='#555555',
+                ha='center', va='bottom',
+                bbox=dict(boxstyle='round,pad=0.4',
+                         facecolor='#FFF3CD', alpha=0.9))
+
+    ax2.set_xlabel('Calendar Month', fontsize=11, fontweight='bold')
+    ax2.set_ylabel('Average Metric', fontsize=11, fontweight='bold')
+    ax2.set_title('B: Standard TWFE — Uses individual timing, but pools early and late adopters into one estimate',
+                 fontsize=12, fontweight='bold', pad=10)
+    ax2.legend(loc='upper left', fontsize=9)
+    ax2.grid(True, alpha=0.3)
+
+    # --- Panel C: Event-Study (event time) ---
+    event_data = data[data['period'].notna() & (data['period'] >= -6) & (data['period'] <= 6)].copy()
+    agg_event = event_data.groupby(['period', 'treatment'])['metric'].mean().reset_index()
+    treat_ev = agg_event[agg_event['treatment'] == 1].sort_values('period')
+    ctrl_ev = agg_event[agg_event['treatment'] == 0].sort_values('period')
+
+    ax3.plot(treat_ev['period'], treat_ev['metric'], marker='o', linewidth=2.5,
+            markersize=6, color='#4A90E2', label='Treatment')
+    ax3.plot(ctrl_ev['period'], ctrl_ev['metric'], marker='s', linewidth=2.5,
+            markersize=6, color='#999999', label='Control')
+    ax3.axvline(x=0, color='green', linestyle='--', alpha=0.5, linewidth=1.5)
+    ax3.axvspan(-0.5, 0.5, alpha=0.1, color='green', label='Period 0 (Adoption Window)')
+
+    # Shade the gap
+    post_ev_periods = treat_ev[treat_ev['period'] > 0]['period'].values
+    post_ev_treat = treat_ev[treat_ev['period'] > 0]['metric'].values
+    post_ev_ctrl = ctrl_ev[ctrl_ev['period'] > 0]['metric'].values
+    if len(post_ev_treat) == len(post_ev_ctrl):
+        ax3.fill_between(post_ev_periods, post_ev_ctrl, post_ev_treat, alpha=0.15,
+                         color='#4A90E2', label='Treatment Effect')
+    ax3.set_xlabel('Relative Period (Event Time)', fontsize=11, fontweight='bold')
+    ax3.set_ylabel('Average Metric', fontsize=11, fontweight='bold')
+    ax3.set_title('C: Event-Study Design — Each location aligned to its own adoption, effect measured in relative time',
+                 fontsize=12, fontweight='bold', pad=10)
+    ax3.legend(loc='upper left', fontsize=10)
+    ax3.grid(True, alpha=0.3)
+
+    fig.suptitle('Same Data, Three Approaches', fontsize=15, fontweight='bold', y=0.98)
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Saved: {output_path}")
@@ -884,8 +1094,10 @@ def main(output_dir=None):
     plot_event_study_results(coefficients, ci_lower, ci_upper, f"{output_dir}/event-study-plot.png")
     plot_parallel_trends(data, f"{output_dir}/parallel-trends.png")
     plot_treatment_vs_control(data, f"{output_dir}/treatment-vs-control-lift.png")
+    plot_control_comparison(data, f"{output_dir}/control-comparison.png")
     plot_method_comparison(naive_cutoff, twfe_estimate, event_study_avg, true_effect,
                           f"{output_dir}/method-comparison.png")
+    plot_method_lift_comparison(data, f"{output_dir}/method-lift-comparison.png")
 
     # ---- Step 7: Verification ----
     print("\n[7/7] Verification...")
@@ -897,7 +1109,9 @@ def main(output_dir=None):
         'event-study-plot.png',
         'parallel-trends.png',
         'treatment-vs-control-lift.png',
+        'control-comparison.png',
         'method-comparison.png',
+        'method-lift-comparison.png',
     ]
 
     print("\nFile generation verification:")
