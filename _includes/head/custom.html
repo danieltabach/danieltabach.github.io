@@ -28,10 +28,11 @@
 
 <!-- Custom styles for blog posts -->
 <style>
-  /* Make images display as block elements, centered, no text wrap */
+  /* Make images display as block elements, centered, full width for legibility */
   .page__content img {
     display: block;
     margin: 1.5em auto;
+    width: 100%;
     max-width: 100%;
     height: auto;
   }
@@ -49,5 +50,11 @@
   /* Ensure code blocks don't overflow */
   .page__content pre {
     overflow-x: auto;
+  }
+
+  /* Author profile bio: flush left, clean line breaks */
+  .author__bio {
+    text-align: left;
+    line-height: 1.5;
   }
 </style>

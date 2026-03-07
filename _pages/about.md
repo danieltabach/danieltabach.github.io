@@ -3,7 +3,7 @@ permalink: /about/
 title: "About"
 ---
 
-I'm Danny, a Data Scientist at JPMorgan Chase. I'm a full-stack data scientist who likes building things - from messy data to clean models to presentations that actually land.
+I'm Danny, a Data Scientist at Chase. I'm a full-stack data scientist who likes building things - from messy data to clean models to presentations that actually land.
 
 ---
 
@@ -21,11 +21,9 @@ I did not have a traditional mathematics-based route when going into this field,
 
 It wasn't always success - a lot of the results came from continously trying and showing up when it mattered. When I first interviewed at JPMorgan, I didn't get the offer. The case study caught me off guard. Six months later, I tried again, attending a company-sponsored hackathon and taking the role of team lead. Within 48 hours - we delivered a project on the environmental tradeoffs of using nuclear vs. other resources for energy that actually told a story. I finally had the chance to interview again after our team landed as finalists. 
 
-The first two years at Chase were consulting-style work on a team called FAST (Focused Analytics Solutions Team) - six-to-eight month projects, different teams with different partners, learning how to build presentations, managing stakeholders, pushing back on unrealistic timelines and actually delivering the data *science* that our leaders wanted. Data science wasn't just modeling. It's communication, prioritization, and even knowing when to say "that's not the right question."
+The first two years at Chase were consulting-style work, rotating across six-to-eight month projects with different teams and partners. I learned how to build presentations, manage stakeholders, push back on unrealistic timelines, and actually deliver the data *science* that our leaders wanted. Data science wasn't just modeling. It's communication, prioritization, and even knowing when to say "that's not the right question."
 
-Today I'm a Senior Data Scientist at Chase, and I lead the build-out of a platform that shapes how the entire branch ecosystem makes staffing and resourcing decisions. Over the past year, I've built something that directly impacts how thousands of branches operate across the country.
-
-This is the work that excites me - and here, I want to share what I learned along the way.
+Today I'm a Data Scientist at Chase, working on optimization and experimentation. This is the work that excites me - and here, I want to share what I learned along the way.
 
 ---
 
@@ -37,10 +35,10 @@ This is the work that excites me - and here, I want to share what I learned alon
   <div style="position: relative; margin-bottom: 2.5rem;">
     <div style="position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; background: #fff; border-radius: 50%; border: 2px solid #393939;"></div>
     <div style="color: #999; font-size: 0.85rem; margin-bottom: 0.25rem;">May 2024 - Present</div>
-    <div style="font-weight: 600; font-size: 1.1rem;">Senior Data Scientist</div>
-    <div style="color: #ccc; margin-bottom: 0.5rem;">JPMorgan Chase - Sales Science Team</div>
+    <div style="font-weight: 600; font-size: 1.1rem;">Data Scientist</div>
+    <div style="color: #ccc; margin-bottom: 0.5rem;">JPMorgan Chase</div>
     <ul style="margin: 0; padding-left: 1.25rem; color: #999;">
-      <li>Enterprise optimization platform for branch staffing decisions</li>
+      <li>Optimization and experimentation</li>
     </ul>
   </div>
 
@@ -48,11 +46,10 @@ This is the work that excites me - and here, I want to share what I learned alon
     <div style="position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; background: #fff; border-radius: 50%; border: 2px solid #393939;"></div>
     <div style="color: #999; font-size: 0.85rem; margin-bottom: 0.25rem;">Aug 2022 - May 2024</div>
     <div style="font-weight: 600; font-size: 1.1rem;">Data Scientist</div>
-    <div style="color: #ccc; margin-bottom: 0.5rem;">JPMorgan Chase - FAST (Focused Analytics Solutions)</div>
+    <div style="color: #ccc; margin-bottom: 0.5rem;">JPMorgan Chase</div>
     <ul style="margin: 0; padding-left: 1.25rem; color: #999;">
-      <li>Customer journey analytics across major life events</li>
-      <li>Delinquency analysis and vulnerable customer programs</li>
-      <li>Marketing campaign models (next-best-product)</li>
+      <li>Cross-functional analytics projects</li>
+      <li>Causal inference and experimentation</li>
     </ul>
   </div>
 
@@ -154,7 +151,7 @@ This is the work that excites me - and here, I want to share what I learned alon
 
 ## Outside of Work
 
-Chess, jiu-jitsu, fantasy books. Based in NYC.
+Chess, jiu-jitsu, fantasy books.
 
 ---
 

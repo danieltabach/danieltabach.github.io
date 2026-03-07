@@ -372,18 +372,17 @@ def plot_staggered_adoption_heatmap(data, output_path, n_locs_show=18):
 
 def plot_naive_did_problem(data, output_path):
     """
-    Two-panel figure showing why naive DiD fails with staggered adoption.
-    Left: Naive approach (single cutoff) appears to show effect
-    Right: Stacked area chart showing treatment group composition over time
+    Two-panel vertical figure showing why naive DiD fails with staggered adoption.
+    Top: Naive approach (single cutoff) appears to show effect
+    Bottom: Stacked area chart showing treatment group composition over time
     """
     setup_plot_style()
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12))
 
-    # LEFT PANEL: Naive DiD view (single cutoff at month 12)
+    # TOP PANEL: Naive DiD view (single cutoff at month 12)
     cutoff_month = 12
 
-    # Aggregate by treatment status and time period
     data_agg = data.groupby(['month', 'treatment'])['metric'].agg(['mean', 'std', 'count']).reset_index()
 
     for treatment in [0, 1]:
@@ -397,12 +396,12 @@ def plot_naive_did_problem(data, output_path):
     ax1.fill_between([cutoff_month, 24], 48, 56, alpha=0.1, color='red', label='Post Period')
     ax1.set_xlabel('Calendar Month', fontweight='bold')
     ax1.set_ylabel('Average Metric', fontweight='bold')
-    ax1.set_title('Naive DiD: Single Cutoff Approach', fontweight='bold')
-    ax1.legend(loc='upper left')
+    ax1.set_title('Naive DiD: Single Cutoff Approach', fontweight='bold', fontsize=13)
+    ax1.legend(loc='upper right', fontsize=10)
     ax1.grid(True, alpha=0.3)
     ax1.set_ylim([48, 56])
 
-    # RIGHT PANEL: Stacked area chart of treatment group composition
+    # BOTTOM PANEL: Stacked area chart of treatment group composition
     treatment_data = data[data['treatment'] == 1].copy()
     treatment_locs = treatment_data.drop_duplicates('location_id')
 
@@ -441,12 +440,13 @@ def plot_naive_did_problem(data, output_path):
 
     ax2.set_xlabel('Calendar Month', fontweight='bold')
     ax2.set_ylabel('Number of Treatment Locations', fontweight='bold')
-    ax2.set_title('Treatment group composition shifts over time', fontweight='bold')
-    ax2.legend(loc='center left', fontsize=9)
+    ax2.set_title('Treatment group composition shifts over time', fontweight='bold', fontsize=13)
+    ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=10,
+               frameon=True, fancybox=True, shadow=False)
     ax2.grid(True, alpha=0.3)
 
-    fig.suptitle('Why a Single Cutoff Doesn\'t Work', fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
+    fig.subplots_adjust(bottom=0.08)
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Saved: {output_path}")
@@ -456,125 +456,143 @@ def plot_event_time_normalization(data, output_path):
     Five-row vertical layout showing transformation from calendar time to event time.
     Row 1: Calendar time with adoption stars (all 3 locations)
     Rows 2-4: One location per row with colored background zones
-    Row 5: Event time (normalized) with wider Period 0 band
+    Row 5: Event time (normalized) with Period 0 band and equal-width annotation
+
+    Uses hardcoded example locations with 5-month adoption windows so the
+    gray zone is clearly visible, matching the post's narrative.
     """
     setup_plot_style()
 
-    fig, axes = plt.subplots(5, 1, figsize=(12, 22),
+    fig, axes = plt.subplots(5, 1, figsize=(14, 24),
                               gridspec_kw={'height_ratios': [3, 2, 2, 2, 3]})
     ax_cal, ax_z1, ax_z2, ax_z3, ax_event = axes
 
-    # Select 3 treatment locations for cleaner readability
-    treatment_locs = data[data['treatment'] == 1]['location_id'].unique()[:3]
-    colors_locs = ['#4A90E2', '#E8827C', '#77DD77']
-    loc_names = ['Location A', 'Location B', 'Location C']
+    # Hardcoded example locations with 6-month adoption windows
+    # Matches the 6-month cap described in the post
+    example_locs = [
+        {'name': 'Location A', 'fc': 5,  'lc': 11, 'color': '#4A90E2'},
+        {'name': 'Location B', 'fc': 9,  'lc': 15, 'color': '#E8827C'},
+        {'name': 'Location C', 'fc': 13, 'lc': 19, 'color': '#77DD77'},
+    ]
 
-    # Gather location info
-    loc_info = []
-    for i, loc_id in enumerate(treatment_locs):
-        loc_data = data[data['location_id'] == loc_id].sort_values('month')
-        fc = int(loc_data['first_completion'].iloc[0])
-        lc = int(loc_data['last_completion'].iloc[0])
-        loc_info.append({
-            'id': loc_id, 'data': loc_data,
-            'fc': fc, 'lc': lc,
-            'color': colors_locs[i], 'name': loc_names[i]
-        })
+    # Generate synthetic metric data for these example locations
+    np.random.seed(99)  # Separate seed for example chart
+    for loc in example_locs:
+        months = np.arange(1, 25)
+        baseline = 50 + 0.3 * months
+        noise = np.random.normal(0, 1.5, len(months))
+        effect = np.zeros(len(months))
+        for j, m in enumerate(months):
+            if m >= loc['fc']:
+                months_post = min(m - loc['fc'] + 1, 3)
+                effect[j] = months_post * 1.5
+        loc['months'] = months
+        loc['metric'] = baseline + effect + noise
+    np.random.seed(42)  # Restore main seed
 
     # --- ROW 1: Calendar Time ---
-    for info in loc_info:
-        ld = info['data']
-        ax_cal.plot(ld['month'], ld['metric'], marker='o', alpha=0.7,
-                    linewidth=2, label=info['name'], color=info['color'], markersize=4)
-        # Mark adoption point with star
-        adoption_metric = ld[ld['month'] == info['fc']]['metric'].values
-        if len(adoption_metric) > 0:
-            ax_cal.scatter(info['fc'], adoption_metric[0], s=120, marker='*',
-                           color=info['color'], edgecolors='black', linewidths=1.5, zorder=10)
+    for loc in example_locs:
+        ax_cal.plot(loc['months'], loc['metric'], marker='o', alpha=0.7,
+                    linewidth=2, label=loc['name'], color=loc['color'], markersize=4)
+        fc_idx = loc['fc'] - 1
+        ax_cal.scatter(loc['fc'], loc['metric'][fc_idx], s=150, marker='*',
+                       color=loc['color'], edgecolors='black', linewidths=1.5, zorder=10)
 
     ax_cal.set_xlabel('Calendar Month', fontweight='bold')
     ax_cal.set_ylabel('Metric', fontweight='bold')
-    ax_cal.set_title('Calendar Time', fontweight='bold', fontsize=13)
-    ax_cal.legend(loc='upper left', fontsize=9)
+    ax_cal.set_title('Calendar Time: Three Locations with Different Adoption Timelines',
+                     fontweight='bold', fontsize=13)
+    ax_cal.legend(loc='upper left', fontsize=10)
     ax_cal.grid(True, alpha=0.3)
+    ax_cal.set_xlim(0.5, 24.5)
 
     # --- ROWS 2-4: Mark the Zones (one per location) ---
     zone_axes = [ax_z1, ax_z2, ax_z3]
-    for i, (ax_z, info) in enumerate(zip(zone_axes, loc_info)):
-        ld = info['data']
-        fc = info['fc']
-        lc = info['lc']
-
-        # Background zones spanning full y range
-        ax_z.axvspan(0.5, fc - 0.5, alpha=0.20, color='#E8827C', zorder=0)
-        ax_z.axvspan(fc - 0.5, lc + 0.5, alpha=0.20, color='#999999', zorder=0)
-        ax_z.axvspan(lc + 0.5, 24.5, alpha=0.20, color='#4A90E2', zorder=0)
-
-        # Zone labels
-        pre_mid = max(1, (1 + fc) / 2)
-        adopt_mid = (fc + lc) / 2
-        post_mid = min(24, (lc + 24) / 2)
-
-        y_range = ld['metric'].max() - ld['metric'].min()
-        label_y = ld['metric'].max() + y_range * 0.08
-
-        ax_z.text(pre_mid, label_y, 'Pre-Period', fontsize=9, fontweight='bold',
-                 color='#CC0000', ha='center', va='bottom')
+    for ax_z, loc in zip(zone_axes, example_locs):
+        fc = loc['fc']
+        lc = loc['lc']
         window_months = lc - fc
-        ax_z.text(adopt_mid, label_y,
-                 f'Adoption Window\n({window_months} mo)', fontsize=9,
-                 fontweight='bold', color='#555555', ha='center', va='bottom')
-        ax_z.text(post_mid, label_y, 'Post-Period', fontsize=9, fontweight='bold',
-                 color='#0055AA', ha='center', va='bottom')
+
+        # Background zones
+        ax_z.axvspan(0.5, fc - 0.5, alpha=0.18, color='#E8827C', zorder=0)
+        ax_z.axvspan(fc - 0.5, lc + 0.5, alpha=0.22, color='#999999', zorder=0)
+        ax_z.axvspan(lc + 0.5, 24.5, alpha=0.18, color='#4A90E2', zorder=0)
 
         # Data line
-        ax_z.plot(ld['month'], ld['metric'], marker='o', alpha=0.8,
-                 linewidth=2, color=info['color'], markersize=5, zorder=5)
+        ax_z.plot(loc['months'], loc['metric'], marker='o', alpha=0.8,
+                 linewidth=2, color=loc['color'], markersize=5, zorder=5)
+
+        # Zone labels inside the zones (middle Y position)
+        y_lo, y_hi = ax_z.get_ylim()
+        # Recalculate after plotting
+        y_lo = loc['metric'].min() - 1
+        y_hi = loc['metric'].max() + 1
+        ax_z.set_ylim(y_lo, y_hi)
+        label_y = y_hi - (y_hi - y_lo) * 0.15
+
+        pre_mid = max(2, (1 + fc) / 2)
+        adopt_mid = (fc + lc) / 2
+        post_mid = min(23, (lc + 1 + 24) / 2)
+
+        ax_z.text(pre_mid, label_y, 'Pre-Period', fontsize=10, fontweight='bold',
+                 color='#CC0000', ha='center', va='top',
+                 bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7))
+        ax_z.text(adopt_mid, label_y,
+                 f'Adoption Window\n({window_months} months)', fontsize=10,
+                 fontweight='bold', color='#555555', ha='center', va='top',
+                 bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7))
+        ax_z.text(post_mid, label_y, 'Post-Period', fontsize=10, fontweight='bold',
+                 color='#0055AA', ha='center', va='top',
+                 bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7))
 
         ax_z.set_xlabel('Calendar Month', fontweight='bold')
         ax_z.set_ylabel('Metric', fontweight='bold')
-        ax_z.set_title(f'Mark the Zones: {info["name"]} '
-                       f'(completes Month {fc}\u2013{lc})',
+        ax_z.set_title(f'{loc["name"]}: First completion Month {fc}, '
+                       f'last completion Month {lc}',
                        fontweight='bold', fontsize=11)
         ax_z.grid(True, alpha=0.3)
         ax_z.set_xlim(0.5, 24.5)
 
     # --- ROW 5: Normalize to Event Time ---
-    for info in loc_info:
-        ld = info['data'].copy()
-        fc = info['fc']
-        ld['event_time'] = ld['month'] - fc
-        ld_filtered = ld[ld['event_time'].between(-6, 8)]
-
-        ax_event.plot(ld_filtered['event_time'], ld_filtered['metric'],
-                     marker='o', alpha=0.7, linewidth=2, label=info['name'],
-                     color=info['color'], markersize=4)
+    for loc in example_locs:
+        fc = loc['fc']
+        event_time = loc['months'] - fc
+        mask = (event_time >= -6) & (event_time <= 8)
+        ax_event.plot(event_time[mask], loc['metric'][mask],
+                     marker='o', alpha=0.7, linewidth=2, label=loc['name'],
+                     color=loc['color'], markersize=4)
 
         # Mark Period 0
-        adoption_data = ld_filtered[ld_filtered['event_time'] == 0]
-        if len(adoption_data) > 0:
-            ax_event.scatter(0, adoption_data['metric'].values[0], s=120, marker='*',
-                            color=info['color'], edgecolors='black', linewidths=1.5, zorder=10)
+        if 0 in event_time[mask]:
+            idx = np.where(event_time == 0)[0][0]
+            ax_event.scatter(0, loc['metric'][idx], s=150, marker='*',
+                            color=loc['color'], edgecolors='black',
+                            linewidths=1.5, zorder=10)
 
-    ax_event.axvline(x=0, color='red', linestyle='--', alpha=0.5, linewidth=2, label='Period 0 (Adoption)')
-    # Wider green band to show it represents multiple months condensed
-    ax_event.fill_between([-1.0, 1.0], ax_event.get_ylim()[0] if ax_event.get_ylim()[0] != 0 else 45,
-                          ax_event.get_ylim()[1] if ax_event.get_ylim()[1] != 1 else 68,
-                          alpha=0.10, color='green')
-    # Re-set after data is plotted
+    # Period 0 band
     y_lo, y_hi = ax_event.get_ylim()
-    ax_event.fill_between([-1.0, 1.0], y_lo, y_hi, alpha=0.10, color='green')
-    ax_event.text(0, y_lo + 0.3, 'Multiple months\ncondensed here',
-                 fontsize=9, fontstyle='italic', color='green', ha='center', va='bottom',
-                 bbox=dict(boxstyle='round,pad=0.3', facecolor='#e6ffe6', alpha=0.8))
+    ax_event.axvspan(-0.5, 0.5, alpha=0.15, color='#999999')
+
+    # Annotation: all windows collapse to the same single period
+    ax_event.annotate('', xy=(-0.5, y_lo + 0.5), xytext=(0.5, y_lo + 0.5),
+                     arrowprops=dict(arrowstyle='<->', color='#666666', lw=2))
+    ax_event.text(0, y_lo + 1.2,
+                 '6 calendar months \u2192 1 period\n(same width for every location)',
+                 fontsize=10, fontstyle='italic', color='#555555',
+                 ha='center', va='bottom',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='#f0f0f0', alpha=0.9))
+
+    # Pre/post shading
+    ax_event.axvspan(-6.5, -0.5, alpha=0.06, color='#E8827C')
+    ax_event.axvspan(0.5, 8.5, alpha=0.06, color='#4A90E2')
 
     ax_event.set_xlabel('Event Time (Relative Periods)', fontweight='bold')
     ax_event.set_ylabel('Metric', fontweight='bold')
-    ax_event.set_title('Normalize to Event Time', fontweight='bold', fontsize=13)
-    ax_event.legend(loc='upper left', fontsize=9)
+    ax_event.set_title('Normalize to Event Time: All Locations Aligned at Period 0',
+                       fontweight='bold', fontsize=13)
+    ax_event.legend(loc='upper left', fontsize=10)
     ax_event.grid(True, alpha=0.3)
 
-    fig.suptitle('Normalizing to Event Time', fontsize=15, fontweight='bold', y=1.01)
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
@@ -714,15 +732,14 @@ def plot_parallel_trends(data, output_path):
     # Add vertical line at median adoption
     ax.axvline(x=median_adoption, color='green', linestyle='--', alpha=0.5, linewidth=2)
 
-    # Pre-trend annotation
-    ax.text(6, 51, 'Pre-Treatment\n(Parallel Trends)', fontsize=10,
+    # Annotations positioned at the top of the chart, above the data
+    ax.text(6, 63, 'Pre-Treatment\n(Parallel Trends)', fontsize=10,
            bbox=dict(boxstyle='round', facecolor='#FFE6E6', alpha=0.7),
-           ha='center')
+           ha='center', va='top')
 
-    # Post-treatment annotation
-    ax.text(20, 56, 'Post-Treatment\n(Treatment Effect)', fontsize=10,
+    ax.text(20, 63, 'Post-Treatment\n(Treatment Effect)', fontsize=10,
            bbox=dict(boxstyle='round', facecolor='#E6F3FF', alpha=0.7),
-           ha='center')
+           ha='center', va='top')
 
     ax.set_xlabel('Calendar Month', fontsize=12, fontweight='bold')
     ax.set_ylabel('Average Metric Value', fontsize=12, fontweight='bold')
@@ -867,15 +884,15 @@ def get_event_study_avg_effect(coefficients):
 
 def plot_treatment_vs_control(data, output_path):
     """
-    Two-panel figure showing treatment vs control group averages.
-    Left: Calendar time (raw trajectories, shows where lines diverge)
-    Right: Event time (normalized, shows the clean gap = treatment effect)
+    Two-panel vertical figure showing treatment vs control group averages.
+    Top: Calendar time (raw trajectories, shows where lines diverge)
+    Bottom: Event time (normalized, shows the clean gap = treatment effect)
     """
     setup_plot_style()
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12))
 
-    # --- LEFT PANEL: Calendar Time (Naive Read -- Misleading) ---
+    # --- TOP PANEL: Calendar Time (Naive Read -- Misleading) ---
     agg_cal = data.groupby(['month', 'treatment'])['metric'].mean().reset_index()
 
     treat_cal = agg_cal[agg_cal['treatment'] == 1]
@@ -907,11 +924,11 @@ def plot_treatment_vs_control(data, output_path):
 
     ax1.set_xlabel('Calendar Month', fontweight='bold')
     ax1.set_ylabel('Average Metric', fontweight='bold')
-    ax1.set_title('Calendar Time (Naive Read \u2014 Misleading)', fontweight='bold')
-    ax1.legend(loc='upper left', fontsize=9)
+    ax1.set_title('Calendar Time (Naive Read \u2014 Misleading)', fontweight='bold', fontsize=13)
+    ax1.legend(loc='lower right', fontsize=10)
     ax1.grid(True, alpha=0.3)
 
-    # --- RIGHT PANEL: Event Time ---
+    # --- BOTTOM PANEL: Event Time ---
     event_data = data[data['period'].notna() & (data['period'] >= -6) & (data['period'] <= 6)].copy()
     agg_event = event_data.groupby(['period', 'treatment'])['metric'].mean().reset_index()
 
@@ -936,11 +953,10 @@ def plot_treatment_vs_control(data, output_path):
 
     ax2.set_xlabel('Relative Period (Event Time)', fontweight='bold')
     ax2.set_ylabel('Average Metric', fontweight='bold')
-    ax2.set_title('Event Time (Normalized)', fontweight='bold')
-    ax2.legend(loc='upper left', fontsize=9)
+    ax2.set_title('Event Time (Normalized)', fontweight='bold', fontsize=13)
+    ax2.legend(loc='lower right', fontsize=10)
     ax2.grid(True, alpha=0.3)
 
-    fig.suptitle('Treatment vs. Control: Measuring the Lift', fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()

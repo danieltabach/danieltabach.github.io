@@ -4,7 +4,7 @@
 
 Personal portfolio site for Danny Tabach. Jekyll + GitHub Pages using Minimal Mistakes remote theme (`mmistakes/minimal-mistakes`), default skin, light theme.
 
-**Owner:** Danny Tabach — Data Scientist at JPMorgan
+**Owner:** Danny Tabach — Data Scientist at Chase
 **Repo:** `danieltabach/danieltabach.github.io`
 **Branch strategy:** `main` is production (deploys via GitHub Pages). Feature branches like `draft/staggered-did-post` for in-progress work.
 

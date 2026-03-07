@@ -4,7 +4,7 @@ subtitle: "Data Scientist"
 name: Danny Tabach
 email: Danieltabach42@gmail.com
 description: >-
-  Data Scientist at JPMorgan Chase. I build optimization platforms, design experiments,
+  Data Scientist at Chase. I build optimization platforms, design experiments,
   and translate technical work into business impact.
 url: "https://danieltabach.github.io"
 baseurl: ""
@@ -45,7 +45,7 @@ plugins:
 author:
   name   : "Danny Tabach"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Data Scientist at JPMorgan"
+  bio    : "Data Scientist at Chase<br>MS Computational Data Science, Georgia Tech"
   links:
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
@@ -72,6 +72,7 @@ defaults:
       layout: single
       author_profile: true
       read_time: true
+      show_date: false
       comments: false
       share: true
       related: true
