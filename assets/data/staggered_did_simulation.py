@@ -436,9 +436,9 @@ def plot_event_time_normalization(data, output_path):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Select 5-6 treatment locations
-    treatment_locs = data[data['treatment'] == 1]['location_id'].unique()[:6]
-    colors_locs = plt.cm.Set2(np.linspace(0, 1, len(treatment_locs)))
+    # Select 3 treatment locations for cleaner readability
+    treatment_locs = data[data['treatment'] == 1]['location_id'].unique()[:3]
+    colors_locs = ['#4A90E2', '#E8827C', '#77DD77']
 
     # LEFT: Calendar time (messy, staggered)
     for i, loc_id in enumerate(treatment_locs):
@@ -1028,90 +1028,555 @@ def plot_method_lift_comparison(data, output_path):
 
 
 # ============================================================================
-# 6. MAIN EXECUTION
+# 6. SCENARIO B: EVERYONE EVENTUALLY TREATED
+# ============================================================================
+
+def generate_scenario_b_data(n_locations=200, n_months=30,
+                              adoption_range=(3, 24)):
+    """
+    All locations eventually get treated. No permanent control group.
+    Adoption starts staggered across adoption_range.
+    Longer timeline (30 months) so late adopters have enough post-data.
+
+    Same training mechanics and treatment effect as Scenario A.
+    """
+    np.random.seed(42)
+    records = []
+
+    for loc_id in range(1, n_locations + 1):
+        adoption_start = np.random.randint(
+            adoption_range[0], adoption_range[1] + 1
+        )
+        n_employees = np.random.randint(1, 6)
+
+        if np.random.random() < 0.4:
+            employee_starts = [adoption_start] * n_employees
+        else:
+            spread = np.random.randint(1, 4)
+            employee_starts = [
+                adoption_start + np.random.randint(0, spread)
+                for _ in range(n_employees)
+            ]
+
+        completions = [s + 6 for s in employee_starts]
+        first_completion = min(completions)
+        last_completion = max(completions)
+        window = last_completion - first_completion
+
+        if window > 6:
+            continue
+
+        for month in range(1, n_months + 1):
+            baseline = 50 + 0.3 * month
+            noise = np.random.normal(0, 2)
+
+            effect = 0
+            if month >= first_completion:
+                months_post = min(
+                    month - first_completion + 1, 3
+                )
+                effect = months_post * 1.5
+
+            records.append({
+                'location_id': loc_id,
+                'month': month,
+                'metric': baseline + effect + noise,
+                'first_completion': first_completion,
+                'last_completion': last_completion,
+                'adoption_window': window,
+                'adoption_start': adoption_start,
+            })
+
+    data = pd.DataFrame(records)
+    n_locs = data['location_id'].nunique()
+    print(f"Scenario B: {n_locs} locations (all treated)")
+    return data
+
+
+def define_cohort_controls(data, pre_periods=6, post_periods=6):
+    """
+    For each cohort (locations completing in the same month),
+    define temporary controls: locations that haven't started
+    treatment by the end of this cohort's analysis window.
+
+    Returns a combined DataFrame with cohort-specific
+    treatment/control labels and event-time periods.
+    """
+    all_cohort_data = []
+
+    # Get unique first_completion months as cohorts
+    cohort_months = sorted(
+        data['first_completion'].dropna().unique()
+    )
+
+    for cohort_month in cohort_months:
+        cohort_month = int(cohort_month)
+
+        # Cohort = locations with first_completion == cohort_month
+        cohort_ids = data[
+            data['first_completion'] == cohort_month
+        ]['location_id'].unique()
+
+        if len(cohort_ids) == 0:
+            continue
+
+        # Analysis window for this cohort
+        window_start = cohort_month - pre_periods
+        window_end = cohort_month + post_periods
+
+        # Control = locations whose adoption_start > window_end
+        # (haven't even started training by end of analysis window)
+        control_ids = data[
+            data['adoption_start'] > window_end
+        ]['location_id'].unique()
+
+        if len(control_ids) < 3:
+            continue  # Need meaningful control group
+
+        # Build cohort dataset
+        for loc_id in cohort_ids:
+            loc_data = data[
+                (data['location_id'] == loc_id)
+                & (data['month'] >= window_start)
+                & (data['month'] <= window_end)
+            ].copy()
+            loc_data['cohort'] = cohort_month
+            loc_data['cohort_treatment'] = 1
+            fc = loc_data['first_completion'].iloc[0]
+            loc_data['event_time'] = loc_data['month'] - fc
+            loc_data['period'] = np.nan
+            in_range = loc_data['event_time'].between(
+                -pre_periods, post_periods
+            )
+            loc_data.loc[in_range, 'period'] = (
+                loc_data.loc[in_range, 'event_time'].astype(int)
+            )
+            all_cohort_data.append(loc_data)
+
+        for loc_id in control_ids:
+            loc_data = data[
+                (data['location_id'] == loc_id)
+                & (data['month'] >= window_start)
+                & (data['month'] <= window_end)
+            ].copy()
+            loc_data['cohort'] = cohort_month
+            loc_data['cohort_treatment'] = 0
+            # Align control to cohort's event time
+            loc_data['event_time'] = (
+                loc_data['month'] - cohort_month
+            )
+            loc_data['period'] = np.nan
+            in_range = loc_data['event_time'].between(
+                -pre_periods, post_periods
+            )
+            loc_data.loc[in_range, 'period'] = (
+                loc_data.loc[in_range, 'event_time'].astype(int)
+            )
+            all_cohort_data.append(loc_data)
+
+    if not all_cohort_data:
+        print("Warning: no valid cohorts found")
+        return pd.DataFrame()
+
+    combined = pd.concat(all_cohort_data, ignore_index=True)
+
+    n_cohorts = combined['cohort'].nunique()
+    n_treat = combined[
+        combined['cohort_treatment'] == 1
+    ]['location_id'].nunique()
+    n_ctrl = combined[
+        combined['cohort_treatment'] == 0
+    ]['location_id'].nunique()
+    print(f"Cohort analysis: {n_cohorts} cohorts, "
+          f"{n_treat} treated locs, {n_ctrl} control locs")
+
+    return combined
+
+
+def run_scenario_b_event_study(cohort_data, pre_periods=6,
+                                post_periods=6):
+    """
+    Run event-study regression on cohort-defined data.
+    Uses cohort_treatment (not 'treatment') for the interaction terms.
+    Includes cohort fixed effects alongside location and time FE.
+    """
+    reg_data = cohort_data[
+        cohort_data['period'].notna()
+        & (cohort_data['period'] >= -pre_periods)
+        & (cohort_data['period'] <= post_periods)
+    ].copy()
+
+    if len(reg_data) == 0:
+        print("No data for Scenario B regression")
+        return None, {}, {}, {}
+
+    # Treatment x period interaction dummies
+    for k in range(-pre_periods, post_periods + 1):
+        reg_data[f'period_{k}'] = (
+            (reg_data['period'] == k)
+            & (reg_data['cohort_treatment'] == 1)
+        ).astype(int)
+
+    # Drop period -1 (reference)
+    reg_data = reg_data.drop(columns=['period_-1'])
+
+    # Fixed effects: location, month, cohort
+    loc_fe = pd.get_dummies(
+        reg_data['location_id'], prefix='loc', drop_first=True
+    )
+    time_fe = pd.get_dummies(
+        reg_data['month'], prefix='month', drop_first=True
+    )
+    cohort_fe = pd.get_dummies(
+        reg_data['cohort'], prefix='cohort', drop_first=True
+    )
+
+    period_cols = [
+        f'period_{k}'
+        for k in range(-pre_periods, post_periods + 1)
+        if k != -1
+    ]
+    X = pd.concat(
+        [reg_data[period_cols], loc_fe, time_fe, cohort_fe],
+        axis=1
+    ).astype(float)
+    X = sm.add_constant(X, has_constant='add')
+    Y = reg_data['metric'].astype(float)
+
+    results = sm.OLS(Y, X).fit()
+
+    coefs, ci_lo, ci_hi = {}, {}, {}
+    for k in range(-pre_periods, post_periods + 1):
+        if k == -1:
+            coefs[k], ci_lo[k], ci_hi[k] = 0, 0, 0
+            continue
+        col = f'period_{k}'
+        if col in results.params.index:
+            coefs[k] = results.params[col]
+            ci = results.conf_int().loc[col]
+            ci_lo[k], ci_hi[k] = ci[0], ci[1]
+        else:
+            coefs[k], ci_lo[k], ci_hi[k] = 0, 0, 0
+
+    return results, coefs, ci_lo, ci_hi
+
+
+def compute_scenario_b_did(cohort_data):
+    """
+    Simple DiD table for Scenario B using cohort-defined controls.
+    Pre = periods -6 to -1, Post = +1 to +6.
+    """
+    analysis = cohort_data[
+        cohort_data['period'].notna()
+        & (cohort_data['period'] != 0)
+    ].copy()
+    analysis['post'] = (analysis['period'] > 0).astype(int)
+
+    summary = analysis.groupby(
+        ['cohort_treatment', 'post']
+    )['metric'].mean().unstack()
+    summary.columns = ['Pre-Period Avg', 'Post-Period Avg']
+    summary['Change'] = (
+        summary['Post-Period Avg'] - summary['Pre-Period Avg']
+    )
+    summary.index = ['Control', 'Treatment']
+
+    did = (
+        summary.loc['Treatment', 'Change']
+        - summary.loc['Control', 'Change']
+    )
+
+    print(f"\nScenario B DiD Estimate: {did:.2f}")
+    print(summary.round(2).to_string())
+    return summary, did
+
+
+def plot_scenario_b_event_study(coefs_b, ci_lo_b, ci_hi_b,
+                                 output_path):
+    """Event-study plot for Scenario B (cohort-based controls)."""
+    setup_plot_style()
+
+    periods = sorted(coefs_b.keys())
+    coefs_list = [coefs_b[p] for p in periods]
+    lower = [ci_lo_b[p] for p in periods]
+    upper = [ci_hi_b[p] for p in periods]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    ax.fill_between(periods, lower, upper, alpha=0.25,
+                    color='#E8827C', label='95% CI')
+    ax.plot(periods, coefs_list, marker='o', linewidth=2.5,
+            markersize=8, color='#E8827C',
+            label='Point Estimate', zorder=5)
+
+    ax.axhline(y=0, color='black', linestyle='-',
+               linewidth=1, alpha=0.5)
+    ax.axvspan(-0.5, 0.5, alpha=0.1, color='green',
+               label='Adoption Window (Period 0)')
+    ax.axvspan(-6.5, -0.5, alpha=0.05, color='gray')
+
+    ax.set_xlabel('Relative Time Period', fontsize=12,
+                  fontweight='bold')
+    ax.set_ylabel('Treatment Effect (Coefficient)', fontsize=12,
+                  fontweight='bold')
+    ax.set_title(
+        'Scenario B: Event-Study Estimates (Cohort Controls)',
+        fontsize=13, fontweight='bold', pad=15
+    )
+    ax.set_xticks(periods)
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3, axis='y')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+def plot_scenario_b_treatment_vs_control(cohort_data, output_path):
+    """
+    Treatment vs control in event time for Scenario B.
+    Shows the lift using cohort-defined temporary controls.
+    """
+    setup_plot_style()
+
+    event_data = cohort_data[
+        cohort_data['period'].notna()
+        & (cohort_data['period'] >= -6)
+        & (cohort_data['period'] <= 6)
+    ].copy()
+
+    agg = event_data.groupby(
+        ['period', 'cohort_treatment']
+    )['metric'].mean().reset_index()
+
+    treat = agg[agg['cohort_treatment'] == 1].sort_values('period')
+    ctrl = agg[agg['cohort_treatment'] == 0].sort_values('period')
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    ax.plot(treat['period'], treat['metric'], marker='o',
+            linewidth=2.5, markersize=6, color='#E8827C',
+            label='Treatment (Cohort)', zorder=5)
+    ax.plot(ctrl['period'], ctrl['metric'], marker='s',
+            linewidth=2.5, markersize=6, color='#999999',
+            label='Control (Not-Yet-Treated)', zorder=5)
+
+    ax.axvline(x=0, color='green', linestyle='--', alpha=0.5,
+               linewidth=1.5)
+    ax.axvspan(-0.5, 0.5, alpha=0.1, color='green',
+               label='Period 0')
+
+    # Shade treatment effect gap
+    post_p = treat[treat['period'] > 0]['period'].values
+    post_t = treat[treat['period'] > 0]['metric'].values
+    post_c = ctrl[ctrl['period'] > 0]['metric'].values
+    if len(post_t) == len(post_c):
+        ax.fill_between(post_p, post_c, post_t, alpha=0.15,
+                         color='#E8827C', label='Treatment Effect')
+
+    ax.set_xlabel('Relative Period (Event Time)', fontsize=12,
+                  fontweight='bold')
+    ax.set_ylabel('Average Metric', fontsize=12, fontweight='bold')
+    ax.set_title(
+        'Scenario B: Treatment vs. Temporary Controls',
+        fontsize=13, fontweight='bold', pad=15
+    )
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
+                              coefs_b, ci_lo_b, ci_hi_b,
+                              output_path):
+    """
+    Side-by-side event-study plots: Scenario A vs Scenario B.
+    """
+    setup_plot_style()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    periods_a = sorted(coefs_a.keys())
+    periods_b = sorted(coefs_b.keys())
+
+    # Scenario A
+    ax1.fill_between(
+        periods_a,
+        [ci_lo_a[p] for p in periods_a],
+        [ci_hi_a[p] for p in periods_a],
+        alpha=0.25, color='#4A90E2'
+    )
+    ax1.plot(
+        periods_a, [coefs_a[p] for p in periods_a],
+        marker='o', linewidth=2.5, markersize=8,
+        color='#4A90E2', zorder=5
+    )
+    ax1.axhline(y=0, color='black', linestyle='-',
+                linewidth=1, alpha=0.5)
+    ax1.axvspan(-0.5, 0.5, alpha=0.1, color='green')
+    ax1.set_xlabel('Relative Period', fontweight='bold')
+    ax1.set_ylabel('Treatment Effect', fontweight='bold')
+    ax1.set_title('Scenario A: Clean Holdout',
+                  fontweight='bold')
+    ax1.grid(True, alpha=0.3, axis='y')
+
+    # Scenario B
+    ax2.fill_between(
+        periods_b,
+        [ci_lo_b[p] for p in periods_b],
+        [ci_hi_b[p] for p in periods_b],
+        alpha=0.25, color='#E8827C'
+    )
+    ax2.plot(
+        periods_b, [coefs_b[p] for p in periods_b],
+        marker='o', linewidth=2.5, markersize=8,
+        color='#E8827C', zorder=5
+    )
+    ax2.axhline(y=0, color='black', linestyle='-',
+                linewidth=1, alpha=0.5)
+    ax2.axvspan(-0.5, 0.5, alpha=0.1, color='green')
+    ax2.set_xlabel('Relative Period', fontweight='bold')
+    ax2.set_ylabel('Treatment Effect', fontweight='bold')
+    ax2.set_title('Scenario B: Cohort Controls',
+                  fontweight='bold')
+    ax2.grid(True, alpha=0.3, axis='y')
+
+    # Match y-axes
+    all_vals = (
+        [ci_lo_a[p] for p in periods_a]
+        + [ci_hi_a[p] for p in periods_a]
+        + [ci_lo_b[p] for p in periods_b]
+        + [ci_hi_b[p] for p in periods_b]
+    )
+    y_min = min(all_vals) - 0.5
+    y_max = max(all_vals) + 0.5
+    ax1.set_ylim(y_min, y_max)
+    ax2.set_ylim(y_min, y_max)
+
+    fig.suptitle('Event-Study Estimates: Two Scenarios',
+                 fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+# ============================================================================
+# 7. MAIN EXECUTION
 # ============================================================================
 
 def main(output_dir=None):
-    """Run the complete staggered DiD simulation."""
+    """Run the complete staggered DiD simulation (both scenarios)."""
     import os
 
     print("="*70)
     print("STAGGERED DIFFERENCE-IN-DIFFERENCES SIMULATION")
     print("="*70)
 
-    # Default output: same directory as the script's image assets
     if output_dir is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        output_dir = os.path.join(script_dir, '..', 'images', 'posts', 'staggered-did')
+        output_dir = os.path.join(
+            script_dir, '..', 'images', 'posts', 'staggered-did'
+        )
         output_dir = os.path.abspath(output_dir)
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # ---- Step 1: Generate data ----
-    print("\n[1/7] Generating synthetic panel data...")
-    data = generate_synthetic_data(n_locations=200, n_treatment=120, n_control=80, n_months=24)
+    # ==== SCENARIO A: Clean Holdout Control ====
+    print("\n" + "="*70)
+    print("SCENARIO A: CLEAN HOLDOUT CONTROL")
+    print("="*70)
 
-    # ---- Step 2: Normalize to event time ----
-    print("\n[2/7] Normalizing to event time...")
+    print("\n[A1] Generating Scenario A data...")
+    data = generate_synthetic_data(
+        n_locations=200, n_treatment=120,
+        n_control=80, n_months=24
+    )
+
+    print("\n[A2] Normalizing to event time...")
     data = normalize_to_event_time(data)
     print(f"Data shape: {data.shape}")
     print(f"Locations: {data['location_id'].nunique()}")
-    print(f"Months: {data['month'].nunique()}")
 
-    # ---- Step 3: Run event-study regression ----
-    print("\n[3/7] Running event-study regression...")
-    results, coefficients, ci_lower, ci_upper = run_event_study_regression(data)
+    print("\n[A3] Running event-study regression...")
+    results_a, coefs_a, ci_lo_a, ci_hi_a = run_event_study_regression(data)
 
-    # ---- Step 4: Compute DiD summary ----
-    print("\n[4/7] Computing DiD summary...")
-    did_summary = compute_did_summary(data)
+    print("\n[A4] Computing DiD summary...")
+    did_summary_a = compute_did_summary(data)
 
-    # ---- Step 5: Run benchmarking (naive approaches) ----
-    print("\n[5/7] Running benchmarking comparisons...")
-
+    print("\n[A5] Running benchmarking comparisons...")
     naive_cutoff = run_naive_cutoff_did(data)
     twfe_estimate = run_naive_twfe(data)
-    event_study_avg = get_event_study_avg_effect(coefficients)
+    event_study_avg_a = get_event_study_avg_effect(coefs_a)
 
-    # True effect: ramp-up is months_since * 1.5, capped at 3 months = 4.5
     true_effect = 4.5
 
-    print(f"\n{'='*60}")
-    print("BENCHMARKING: METHOD COMPARISON")
-    print(f"{'='*60}")
-    print(f"  {'Method':<30} {'Estimate':>10} {'True':>8} {'Bias':>8}")
-    print(f"  {'-'*56}")
-    print(f"  {'Naive Calendar Cutoff':<30} {naive_cutoff:>10.2f} {true_effect:>8.1f} {((naive_cutoff-true_effect)/true_effect)*100:>7.0f}%")
-    print(f"  {'Standard TWFE':<30} {twfe_estimate:>10.2f} {true_effect:>8.1f} {((twfe_estimate-true_effect)/true_effect)*100:>7.0f}%")
-    print(f"  {'Event-Study (avg post)':<30} {event_study_avg:>10.2f} {true_effect:>8.1f} {((event_study_avg-true_effect)/true_effect)*100:>7.0f}%")
+    print(f"\nScenario A: Naive={naive_cutoff:.2f}, TWFE={twfe_estimate:.2f}, Event-Study={event_study_avg_a:.2f}")
 
-    # ---- Step 6: Generate all plots ----
-    print("\n[6/7] Generating publication-quality plots...")
-
+    print("\n[A6] Generating Scenario A plots...")
     plot_staggered_adoption_heatmap(data, f"{output_dir}/staggered-adoption-heatmap.png")
     plot_naive_did_problem(data, f"{output_dir}/naive-did-problem.png")
     plot_event_time_normalization(data, f"{output_dir}/event-time-normalization.png")
-    plot_event_study_results(coefficients, ci_lower, ci_upper, f"{output_dir}/event-study-plot.png")
+    plot_event_study_results(coefs_a, ci_lo_a, ci_hi_a, f"{output_dir}/event-study-plot.png")
     plot_parallel_trends(data, f"{output_dir}/parallel-trends.png")
     plot_treatment_vs_control(data, f"{output_dir}/treatment-vs-control-lift.png")
     plot_control_comparison(data, f"{output_dir}/control-comparison.png")
-    plot_method_comparison(naive_cutoff, twfe_estimate, event_study_avg, true_effect,
-                          f"{output_dir}/method-comparison.png")
+    plot_method_comparison(naive_cutoff, twfe_estimate, event_study_avg_a, true_effect, f"{output_dir}/method-comparison.png")
     plot_method_lift_comparison(data, f"{output_dir}/method-lift-comparison.png")
 
-    # ---- Step 7: Verification ----
-    print("\n[7/7] Verification...")
+
+
+    # ==== SCENARIO B: Everyone Eventually Treated ====
+    print("\n" + "="*70)
+    print("SCENARIO B: EVERYONE EVENTUALLY TREATED")
+    print("="*70)
+
+    print("\n[B1] Generating Scenario B data...")
+    data_b = generate_scenario_b_data(n_locations=200, n_months=30)
+
+    print("\n[B2] Defining cohort controls...")
+    cohort_data = define_cohort_controls(data_b)
+
+    coefs_b, ci_lo_b, ci_hi_b = {}, {}, {}
+
+    if len(cohort_data) > 0:
+        print("\n[B3] Running Scenario B event-study...")
+        results_b, coefs_b, ci_lo_b, ci_hi_b = run_scenario_b_event_study(cohort_data)
+
+        print("\n[B4] Computing Scenario B DiD summary...")
+        summary_b, did_b = compute_scenario_b_did(cohort_data)
+
+        post_coefs_b = [coefs_b[k] for k in coefs_b if k > 0]
+        event_study_avg_b = np.mean(post_coefs_b) if post_coefs_b else 0
+        bias_b = ((event_study_avg_b - true_effect) / true_effect) * 100
+        print(f"Scenario B event-study avg: {event_study_avg_b:.2f} ({bias_b:+.0f}% bias)")
+
+        print("\n[B5] Generating Scenario B plots...")
+        plot_scenario_b_event_study(coefs_b, ci_lo_b, ci_hi_b, f"{output_dir}/scenario-b-event-study.png")
+        plot_scenario_b_treatment_vs_control(cohort_data, f"{output_dir}/scenario-b-treatment-vs-control.png")
+        plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a, coefs_b, ci_lo_b, ci_hi_b, f"{output_dir}/scenario-comparison.png")
+    else:
+        print("WARNING: Scenario B produced no cohort data")
+
+    # ==== VERIFICATION ====
+    print("\n" + "="*70)
+    print("VERIFICATION")
+    print("="*70)
 
     required_files = [
-        'staggered-adoption-heatmap.png',
-        'naive-did-problem.png',
-        'event-time-normalization.png',
-        'event-study-plot.png',
-        'parallel-trends.png',
-        'treatment-vs-control-lift.png',
-        'control-comparison.png',
-        'method-comparison.png',
+        'staggered-adoption-heatmap.png', 'naive-did-problem.png',
+        'event-time-normalization.png', 'event-study-plot.png',
+        'parallel-trends.png', 'treatment-vs-control-lift.png',
+        'control-comparison.png', 'method-comparison.png',
         'method-lift-comparison.png',
+        'scenario-b-event-study.png',
+        'scenario-b-treatment-vs-control.png',
+        'scenario-comparison.png',
     ]
 
     print("\nFile generation verification:")
@@ -1128,7 +1593,19 @@ def main(output_dir=None):
     print("="*70)
     print(f"\nAll outputs saved to: {output_dir}")
 
-    return data, results, coefficients, did_summary
+    return {
+        'scenario_a': {
+            'data': data, 'results': results_a,
+            'coefficients': coefs_a, 'did_summary': did_summary_a,
+            'naive': naive_cutoff, 'twfe': twfe_estimate,
+            'event_study_avg': event_study_avg_a,
+        },
+        'scenario_b': {
+            'data': data_b, 'cohort_data': cohort_data,
+            'coefficients': coefs_b,
+        },
+    }
+
 
 if __name__ == "__main__":
-    data, results, coefficients, did_summary = main()
+    results = main()
