@@ -95,9 +95,9 @@ We split each location's timeline into three zones:
 Every treatment location, regardless of when it actually ramped up, is now on the same relative timeline. Period -3 means "three months before the adoption window started" for every location. Period +2 means "two months after the last trainee finished" for every location.
 
 ![Event Time Normalization](/assets/images/posts/staggered-did/event-time-normalization.png)
-*Left: The same locations in calendar time, their adoption points are scattered across different months. Right: After normalizing to event time, they all align at Period 0. Different calendar dates, same relative timeline.*
+*Top: three locations in calendar time with scattered adoption points. Middle rows: each location shown individually with its pre-period (red), adoption window (gray), and post-period (blue) zones highlighted. Bottom: after normalizing to event time, all three align at Period 0. Different calendar dates, same relative timeline.*
 
-In the chart, the star markers indicate the moment when each location's first trainee completed training (the point where treatment starts taking effect).
+The star markers indicate when each location's first trainee completed training. The middle rows make it clear that each location's adoption window spans multiple calendar months, and that these windows land at different points in time.
 
 ---
 
@@ -198,10 +198,12 @@ The gap between the two lines after Period 0 is the treatment effect in raw metr
 
 ### Event-Study Coefficients
 
-The event-study regression (details in the [Appendix](#appendix-the-formal-model)) formalizes this comparison. Instead of showing raw metrics, it estimates the *treatment effect coefficient* at each relative time period. These coefficients represent: "how much higher is the treatment group's metric compared to what we'd expect, at this distance from adoption?"
+The raw lift chart is useful, but it doesn't control for anything. The event-study regression (details in the [Appendix](#appendix-the-formal-model)) formalizes this by running an OLS regression with location fixed effects (comparing each location to itself), time fixed effects (absorbing calendar-month shocks), and a set of treatment × period interaction terms. Each interaction term captures: "for treatment locations at this specific distance from adoption, how much higher is their metric than we'd expect given their own baseline and the calendar-month trend?"
+
+The result is a **regression coefficient** at each relative period. A coefficient of +3.5 at Period +2 means: "two months after the adoption window closed, treatment locations' metrics were 3.5 units higher than what we'd predict from their historical pattern and the control group's concurrent trend." If the model is well-specified, these coefficients isolate the causal effect of the treatment at each distance from adoption.
 
 ![Event Study Plot](/assets/images/posts/staggered-did/event-study-plot.png)
-*Left: the 6 calendar months that make up Period 0 shown individually (grayed out). Right: the final event-study coefficients with Period 0 condensed to a single band. Pre-period estimates hover near zero. Post-period estimates show a clear positive lift.*
+*Top: the 6 calendar months that make up Period 0 shown individually (grayed out), showing data that gets excluded. Bottom: the final event-study coefficients with Period 0 condensed to a single band. Pre-period coefficients near zero confirm parallel trends. Post-period coefficients show the treatment effect building over time.*
 
 **Pre-period (Periods -6 to -1):** The coefficients hover near zero and their confidence intervals cross zero. This confirms treatment and control locations were trending the same way *before* adoption happened.
 
@@ -218,7 +220,7 @@ The event-study regression (details in the [Appendix](#appendix-the-formal-model
 The treatment group's metric went up by 6.08. The control group also went up by 2.10 (background trend). The difference-in-differences strips out that background trend: 6.08 - 2.10 = **3.98 units attributable to the treatment**.
 
 ![Treatment vs Control Lift](/assets/images/posts/staggered-did/treatment-vs-control-lift.png)
-*Left: In calendar time, the treatment group gradually pulls ahead as more locations complete adoption. Right: In event time, the gap becomes crisp. You can see the treatment effect building cleanly after Period 0.*
+*Left: The naive calendar-time view, splitting at the median adoption month. This is misleading because it mixes locations at different adoption stages. Right: After normalizing to event time, the treatment effect becomes crisp. The gap after Period 0 builds cleanly as locations settle into the new software.*
 
 ---
 
@@ -241,11 +243,13 @@ The answer: locations that haven't started yet. For each cohort of locations com
 As more locations adopt, the pool of the available control units shrinks. Early cohorts have plenty of not-yet-treated locations to compare against. Late cohorts have fewer. This is a fundamental constraint, not a flaw.
 
 ![Shrinking Controls](/assets/images/posts/staggered-did/shrinking-controls.png)
-*For each cohort month, the blue bars show the number of treatment locations and the gray bars show the available controls. As adoption progresses, the control pool shrinks.*
+*For each cohort month: blue = current treatment locations, red = locations about to start treatment next month (being "shaved off" from the control pool), gray = remaining available controls. The control pool visibly shrinks as adoption progresses.*
 
 ### Why TWFE Breaks Here
 
-This is where a standard approach called **two-way fixed effects (TWFE)** runs into trouble. TWFE is a single regression with location fixed effects, time fixed effects, and one treatment indicator. It works well when everyone gets treated at the same time. But when adoption is staggered and there's no permanent control group, it quietly starts using *already-treated* locations as comparisons for late adopters.
+You might wonder: can't we just run a standard panel regression? That's exactly what **two-way fixed effects (TWFE)** does, and it's the default approach in most applied econometrics textbooks. The name comes from the two sets of fixed effects in the model: one for each location (absorbing permanent differences between units) and one for each time period (absorbing shocks that hit everyone). You add a single treatment indicator, run OLS, and read off the coefficient. Simple.
+
+TWFE works well when everyone gets treated at the same time. But when adoption is staggered and there's no permanent control group, it quietly starts using *already-treated* locations as comparisons for late adopters.
 
 The concept: by the time late adopters start their post-period, the early adopters have already been treated for months. Their metrics are elevated. TWFE doesn't know the difference. It treats any untreated-at-that-moment observation as a valid comparison, including early adopters whose metrics are already inflated by the treatment effect. This pulls the estimate in the wrong direction.
 
