@@ -29,11 +29,7 @@ This post walks through how standard Difference-in-Differences works, where the 
 
 ## What Is Difference-in-Differences?
 
-Before we get into the staggered case, it's worth grounding ourselves in what DiD actually does and when it works cleanly.
-
-### The Textbook Version
-
-Imagine you have two groups: a treatment group that gets the new software and a control group that doesn't. You measure both groups before and after the rollout. The idea is simple: look at how much the treatment group changed, subtract how much the control group changed (to strip out background trends), and whatever is left is the treatment effect.
+**Difference-in-Differences (DiD)** compares the *change* in outcomes for a treatment group to the *change* for a control group. By subtracting the control group's trend, you strip out background noise (seasonality, company-wide shifts) and isolate what's attributable to the intervention. There are a number of great articles that cover the fundamentals well ([this one from Bukalapak](https://medium.com/bukalapak-data/difference-in-differences-8c925e691fff) is a solid starting point). The core logic boils down to this:
 
 | | Pre-Period | Post-Period | Change |
 |---|---|---|---|
@@ -41,43 +37,30 @@ Imagine you have two groups: a treatment group that gets the new software and a 
 | **Control** | $Y_{C,pre}$ | $Y_{C,post}$ | $\Delta_C$ |
 | **DiD Estimate** | | | $\Delta_T - \Delta_C$ |
 
-The control group's change captures everything that would have happened anyway (seasonality, company-wide trends, market shifts). By subtracting it, you isolate the part of the treatment group's change that's attributable to the intervention.
+The key assumption: both groups need to have been trending in the same direction before treatment, the **parallel trends assumption**. If they weren't, the whole framework falls apart.
 
-### How DiD Differs from an A/B Test
-
-An A/B test and DiD are solving similar problems but in different ways. In an A/B test, you randomly assign units, run the treatment, and compare outcomes at a single point in time. Randomization handles the confounding.
-
-DiD doesn't require randomization. Instead, it uses the *change over time* to control for pre-existing differences between groups. Even if the treatment group started at a higher baseline (maybe those locations were already higher-performing), DiD doesn't care. It's comparing the *change* in each group, not the level.
-
-The tradeoff: DiD relies on the **parallel trends assumption**. Before the treatment happened, the two groups need to have been moving in the same direction at the same rate. If treatment locations were already on a different trajectory before the rollout, the whole framework falls apart.
-
-### When DiD Works Cleanly
-
-DiD works cleanly when the rollout happens all at once. Everyone gets treated on the same day, there's a clear "before" and "after," and you can draw a single line between the two periods. That's the textbook case.
-
-In practice, that almost never happens.
+DiD works cleanly when the rollout happens all at once. Everyone gets treated on the same day, there's a clear "before" and "after," and you can draw a single line between the two periods. In practice, that almost never happens, and that's where this post picks up.
 
 ---
 
 ## What Does Staggered Adoption Actually Look Like?
 
-That's the textbook. Here's what actually happens.
 
-Let's look at single-location examples with 3 trainees who each need 6 months of training on the new software. Each orange arrow below is one person's training timeline (for this example, let's assume in the data they either start/end on the first/last day of the month):
+Let's look at a case study with single-location examples. For each location let's say we have 3 trainees who each need 6 months of training on the new software. Each orange arrow below is one person's training timeline (for this example, let's assume in the data they either start/end on the first/last day of the month):
 
-There is no single month where treatment switches on. Every location defines its own adoption timeline.
+There is no single month where treatment switches on. Every location defines its own adoption timeline. 
 ![Staggered Adoption Skeleton](/assets/images/posts/staggered-did/skeleton_staggered.png)
 *For these examples, each trainee is on different timelines. Some managers start everyone together, others spread it out.*
 
 ---
 
-## Why Simpler Approaches Fall Short
+## What about using heuristics?
 
-The natural first instinct: just pick a single cutoff date. Maybe you use the median adoption month, or the month when "most" locations were done. Then you compare everything before that date to everything after.
+The natural first instinct is to pick a single cutoff date. Maybe you use the median adoption month, or the month when "most" locations were done. Then you compare everything before that date to everything after.
 
 The problem is: at any given calendar month, your treatment group becomes a *mix* of locations at completely different stages. Some have been fully operational on the new software for months. Some just finished training. Some haven't started. When you average across all of them, you're averaging together strong effects, weak effects, and zero effects. The result is a diluted number that underestimates the real impact.
 
-This is **composition bias**. The mix of locations changes at every time point. At Month 8, your average might include some fully-adopted locations, some mid-training, and some that haven't started. At Month 14, it's a completely different mix. You're not comparing the same thing to itself across time. The composition of your treatment group is shifting underneath you, and that shifting can even flip the directionality of your estimate.
+This is **composition bias**. The mix of locations changes at every time point. At Month 8, your average might include some fully-adopted locations, some mid-training, and some that haven't started. At Month 14, it's a completely different mix. You're not comparing the same metric to itself across time. The composition of your treatment group is shifting underneath you, and that shifting can even flip the directionality of your estimate.
 
 ![Naive DiD Problem](/assets/images/posts/staggered-did/naive-did-problem.png)
 *Left: A naive single-cutoff DiD looks clean but averages across locations at different adoption stages. Right: The actual location-level data is messy. A single cutoff blurs all of this together.*
@@ -86,7 +69,7 @@ This is **composition bias**. The mix of locations changes at every time point. 
 
 ## The Fix: Normalize to Event Time
 
-Instead of forcing a single cutoff, we let each location define its own timeline (for this example we filter this downstream).
+Instead of forcing a single cutoff, we let each location define its own timeline.
 
 ### Defining the Adoption Window
 
@@ -95,7 +78,7 @@ For each treatment location, we identify the **adoption window**: the period fro
 ![Pre-Period, Period 0, Post-Period Zones](/assets/images/posts/staggered-did/pre-zero-post-examples.png)
 *The same locations from above, now with the framework overlaid. Red = Pre-Period (baseline), gray = Period 0 (adoption window, blacked out), blue = Post-Period (where we measure the effect).*
 
-This window is the messy middle. Some trainees have the new skills, others don't. The location is in flux. Think of it like a mid-season roster overhaul. You wouldn't judge the new lineup during the first few games when players are still learning each other's tendencies. You'd compare the team's record before the trades to their record after the new players have settled in.
+We assume that trends within this 'period-0' window are noisy. Some trainees have the new skills, others don't. The location is in flux. My local Planet Fitness spent weeks renovating to install new machines, with much of the gym closed off. You wouldn't survey visitors about the new equipment while half the floor is still behind caution tape.
 
 ### The Three Zones
 
@@ -103,13 +86,13 @@ We split each location's timeline into three zones:
 
 **Pre-Period (before the window):** The location before any trainee completed training. This is the baseline. We measure metrics here and call these periods -1, -2, -3, and so on, counting backwards from the adoption window.
 
-**Period 0 (the adoption window itself):** We black this out. Don't measure it. Don't interpret it. It's the mid-roster-change stretch. Metrics here are a blend of old and new with no clean read.
+**Period 0 (the adoption window itself):** We black this out. Don't measure it or interpret it. Metrics here are a blend of old and new with no clean read.
 
 **Post-Period (after the window):** The location after *all* trainees finished training. This is where we look for the treatment effect. We call these periods +1, +2, +3, counting forward.
 
 ### The Shift
 
-Here's where it comes together. Every treatment location, regardless of when it actually adopted, is now on the same relative timeline. Period -3 means "three months before the adoption window started" for every location. Period +2 means "two months after the last trainee finished" for every location.
+Every treatment location, regardless of when it actually ramped up, is now on the same relative timeline. Period -3 means "three months before the adoption window started" for every location. Period +2 means "two months after the last trainee finished" for every location.
 
 ![Event Time Normalization](/assets/images/posts/staggered-did/event-time-normalization.png)
 *Left: The same locations in calendar time, their adoption points are scattered across different months. Right: After normalizing to event time, they all align at Period 0. Different calendar dates, same relative timeline.*
@@ -124,15 +107,18 @@ There are a few ways you could define the adoption window. It's worth being expl
 
 **Option A: First start to last start.** The window covers when trainees *begin* training. This makes sense if you're studying how training disruptions affect operations (trainees pulled from their regular duties, workload shifting to others).
 
-**Option B: First completion to last completion.** This is what we use. The window covers when trainees *finish* training and can actually contribute using the new software. The post-period starts when everyone is fully trained.
+**Option B: First completion to last completion.** This is what we use (with a slight heuristic). The window covers when trainees *finish* training and can actually contribute using the new software (trainee efficiency after ramp up, is the new software actually helping?). The post-period starts when everyone is fully trained.
 
-**Option C: First start to last completion.** The widest possible window, covering the entire training lifecycle. Useful if you want maximum separation between "definitely no treatment" and "definitely full treatment," but it blacks out a lot of data.
+**Option C: First start to last completion.** The widest possible window, covering the entire training lifecycle. Useful if you want maximum separation between "definitely no treatment" and "definitely full treatment," but it has the potential to black out huge chunks of data, and you'll have to consider normalizing for extended time periods vs. shorter ones.
 
-We chose Option B because the question we're answering is: *does the new software improve the metric?* A trainee mid-course isn't using the software yet. They can't contribute to the outcome we're measuring. The post-period should start when everyone can contribute, not when the first person started learning.
+In this case example we are going to walk through Option B because the question we're answering is: *does the new software improve the metric?* A trainee mid-course isn't using the software yet. They can't contribute to the outcome we're measuring. The post-period should start when *everyone* can contribute, not when the first person started learning.
 
-If you were studying something different (how training disruption affects productivity, for example), Option A might be more appropriate. The right choice depends on what you're measuring.
+There's one more wrinkle. If we followed Option B exactly, every location would have a different length of Period 0 (based on how spread out their completions are). To keep things comparable, we set a limit: all completions must fall within a 6-month window from the *last* completion. This preserves sample size while keeping the period-0 boundary consistent across locations.
 
-<!-- TODO: hand-drawn tight-vs-wide-window.png showing tight vs wide adoption windows side by side -->
+![Method Options](/assets/images/posts/staggered-did/method_options.png)
+*Options A through C define the adoption window differently. Our "Final Method" adjusts Option B: from the last completion, all other completions must fall within a 6-month window.*
+
+If we wanted to measure the impact of disruption on the ecosystem for example, Option A might be more appropriate. The right choice depends on what you're measuring.
 
 ---
 
@@ -142,25 +128,27 @@ Trimming the sample feels counterintuitive, but keeping every location regardles
 
 ### Filter 1: Bounded Adoption Window
 
-If a location's adoption window stretches beyond 6 months, we set it aside for this analysis. If it took 14 months from first completion to last, the blackout window would eat almost the entire timeline. There wouldn't be enough clean pre or post data left to measure anything meaningful.
+If a location's adoption window stretches beyond 6 months, we set it aside for this analysis. If it took 14 months from first completion to last, the blackout window would eat almost the entire timeline. There wouldn't be enough clean pre or post data left to measure anything meaningful. Conversely, some windows might be short - within 3 months of first and last completion - but we also don't treat this as "Period 0" - instead - we add 3 months as well (albeit a little arbitararily) to actually help us preserve some signal. 
 
-Most locations in our dataset fell within this window. Training itself takes 6 months, and most managers either trained everyone together (adoption window = 0 months) or staggered within a few months. The locations with extremely long adoption windows were the exception.
+For our simulation, I purposely made the data fall within this window to make it easy. For this case, we assume training itself takes 6 months, and most managers either trained everyone together (adoption window = 0 months) or staggered within a few months. The locations with extremely long adoption windows were the exception.
 
-This filter has a downside worth noting. By blacking out the entire adoption window, we lose information about what happens during the transition itself. If some trainees are already creating impact while others are still in training, that partial effect gets thrown away. In cases where the transition period IS the thing you want to study (for example, measuring how quickly a team ramps up), a different framework would be more appropriate.
+This filter has a downside worth noting. By blacking out the entire adoption window, we lose information about what happens during the transition itself. If some trainees are already creating impact while others are still in training, that partial effect gets thrown away. In cases where the transition period IS the thing you want to study (for example, measuring how quickly a team ramps up), a different framework would be more appropriate. 
+
+There is however a potential upside where novelty effects might be dismissed during this window and not be represented in the read following it. 
 
 ### Filter 2: Minimum Pre-Period Data
 
-In this example, we use at least 6 months of pre-period data for every location. We need to validate that treatment and control locations were trending similarly *before* adoption. If a location only has 2 months of pre-data, we can't tell whether its pre-trend was flat, rising, or falling. That makes the parallel trends test unreliable for that location.
+In this example, we use at least 6 months of pre-period data for every location. We need to validate that treatment and control locations were trending similarly *before* adoption. If a location only has 2 months of pre-data, we can't be certain whether its pre-trend was flat, rising, or falling. That makes the parallel trends test unreliable for that location.
 
-There's a more technical reason too. If some locations contribute data at Period -6 and others don't, the *set of locations* in your average changes across time periods. That's composition bias again, the same problem that broke the single-cutoff approach. By requiring every location to have data across the full analysis window, we keep the composition constant. Period -6 and Period +6 contain the exact same set of locations. The comparison is apples to apples.
+There's a more technical reason too. If some locations contribute data at Period -6 and others don't, the *set of locations* in your average changes across time periods. That's composition bias again, the same problem that broke the single-cutoff approach. By requiring every location to have data across the full analysis window, we keep the composition constant. Period -6 and Period +6 contain the exact same set of locations. The comparison then remains apples to apples.
 
 ### Filter 3: Minimum Post-Period Data
 
-Same logic in the other direction. We need enough post-adoption months to actually measure whether the treatment effect materializes, ramps up, or fades. If we only see one month of post-data, we can't tell whether the lift is real, still building, or just noise from a good month. A location with that little data contributes almost nothing to the analysis.
+Same logic in the other direction. We need enough post-adoption months to actually measure whether the treatment effect materializes, ramps up, or fades. If we only see one month of post-data, we can't tell whether the lift is real or just noise from a good month.
 
 ### The Tradeoff
 
-Every filter costs sample size. We're trading breadth for a cleaner read. It's worth being upfront about this: the treatment effect we estimate applies to "locations that adopted within a reasonable timeframe and had enough data on both sides." That's a valid and useful population, but it's not the same as "all locations." In the causal inference literature, this is similar to a **Local Average Treatment Effect (LATE)**: the effect for the compliers, not the full population.
+Every filter costs sample size. We're trading breadth for a cleaner read. It's worth being upfront about this: the treatment effect we estimate applies to "locations that adopted within a reasonable timeframe and had enough data on both sides." It's important to note in DiD, we often want to reduce any bias or confounders before looking at a read, and that is why we normalize as closely as we can before making any sort of comparison. 
 
 ---
 
@@ -168,19 +156,27 @@ Every filter costs sample size. We're trading breadth for a cleaner read. It's w
 
 ### The Setup
 
-This is the simpler case. You designed the experiment with a proper holdout: 120 locations get the new software (staggered), and 80 locations never adopt during the observation period. Those 80 locations serve as the control group for the entire analysis.
+This is the simpler case. You designed the experiment with a proper holdout: 120 locations get the new software (still staggered), and 80 locations that never adopt during the observation period. Those 80 locations are the control group for the entire analysis.
 
 | Group | Locations | Role |
 |---|---|---|
 | Treatment | 120 (staggered adoption) | Receive software on varying timelines |
-| Control | 80 (never adopted) | Counterfactual: what would have happened without the software |
+| Control | 80 (never adopted) | Our counterfactual: what would have happened without the software? |
 
 The control group captures background trends at every point in time. For each treatment location at, say, Period +2 (which might land in May for one location and August for another), we compare that metric to the control group's data at the same calendar month.
 
-![Control Group Comparison](/assets/images/posts/staggered-did/control-comparison.png)
-*Three treatment locations with different adoption timings. The double arrows show where each location's post-adoption metric is compared to the control group average at the same calendar month. Different event times, same calendar-month comparison.*
+Here's how the concurrent comparison works in practice. Each treatment location is compared to the control group at the *same calendar month*, even though they're at different points in their event time:
 
-The **parallel trends assumption** is the foundation. Before any treatment happened, were treatment and control locations moving in the same direction at the same rate? If yes, we can attribute the post-adoption divergence to the treatment. If not, the results become much harder to interpret.
+| Calendar Month | Loc A (adopted M6) | Loc B (adopted M10) | Loc C (adopted M14) | Control Avg |
+|---|---|---|---|---|
+| M3 | Pre-period | Pre-period | Pre-period | ~51 |
+| M8 | **Post +2** ← compare to control | Pre-period | Pre-period | ~53 |
+| M12 | Post +6 | **Post +2** ← compare to control | Pre-period | ~54 |
+| M16 | Post +10 | Post +6 | **Post +2** ← compare to control | ~55 |
+
+The regression handles this automatically: location fixed effects absorb baseline differences, time fixed effects absorb calendar-month trends, and the treatment × period interactions isolate the effect at each distance from adoption.
+
+The **parallel trends assumption** is the foundation. Before any treatment happened, were treatment and control locations moving in the same direction at the same rate? If yes, we can attribute the post-adoption divergence to the treatment. If not, the results become harder to interpret.
 
 ### Validating the Setup
 
@@ -191,10 +187,21 @@ Before looking at the results, we validate that the framework is working.
 
 The two groups moved together before treatment started. That's not *proof* that the assumption holds in the post-period (it's fundamentally untestable there), but it's the best evidence we can get.
 
-The event-study regression (details in the [Appendix](#appendix-the-formal-model)) estimates a separate treatment effect at each relative time period:
+### Raw Metric Lift
+
+Before jumping to regression coefficients, it helps to see the actual metric values. This chart plots the average metric for treatment and control groups at each event-time period:
+
+![Scenario A Raw Metric Lift](/assets/images/posts/staggered-did/scenario-a-raw-lift.png)
+*Average metric for treatment vs. control at each event-time period. The gap after Period 0 is the raw treatment effect. Both groups trend similarly in the pre-period, then diverge.*
+
+The gap between the two lines after Period 0 is the treatment effect in raw metric units. You can see it building over time as locations become more comfortable with the new software.
+
+### Event-Study Coefficients
+
+The event-study regression (details in the [Appendix](#appendix-the-formal-model)) formalizes this comparison. Instead of showing raw metrics, it estimates the *treatment effect coefficient* at each relative time period. These coefficients represent: "how much higher is the treatment group's metric compared to what we'd expect, at this distance from adoption?"
 
 ![Event Study Plot](/assets/images/posts/staggered-did/event-study-plot.png)
-*Each point is the estimated treatment effect at that relative period. The shaded band is the 95% confidence interval. Pre-period estimates hover near zero. Post-period estimates show a clear positive lift.*
+*Left: the 6 calendar months that make up Period 0 shown individually (grayed out). Right: the final event-study coefficients with Period 0 condensed to a single band. Pre-period estimates hover near zero. Post-period estimates show a clear positive lift.*
 
 **Pre-period (Periods -6 to -1):** The coefficients hover near zero and their confidence intervals cross zero. This confirms treatment and control locations were trending the same way *before* adoption happened.
 
@@ -219,7 +226,7 @@ The treatment group's metric went up by 6.08. The control group also went up by 
 
 ### The Setup
 
-In practice, your control group doesn't stay clean forever. Many real rollouts don't have a permanent holdout. Leadership wants everyone on the new software eventually. Some locations just start sooner than others.
+In practice, your control group doesn't stay clean forever. Many real rollouts don't have a permanent holdout. Leadership wants everyone on the new software eventually. Some locations also just start sooner than others.
 
 This is the more common scenario and the one that's harder to analyze. Every location gets treated. The question becomes: who do you compare the early adopters to?
 
@@ -227,23 +234,24 @@ The answer: locations that haven't started yet. For each cohort of locations com
 
 | Cohort (completing month X) | Treatment | Temporary Control |
 |---|---|---|
-| Locations completing in Month 9 | Those locations | Locations whose training hasn't started by Month 15 |
+| Locations completing in Month 9 | Those locations | Locations whose training hasn't started by Month 15 (leaves 6 months of post-period in the control) |
 | Locations completing in Month 12 | Those locations | Locations whose training hasn't started by Month 18 |
 | Locations completing in Month 15 | Those locations | Locations whose training hasn't started by Month 21 |
 
-As more locations adopt, the pool of available controls shrinks. Early cohorts have plenty of not-yet-treated locations to compare against. Late cohorts have fewer. This is a fundamental constraint, not a flaw.
+As more locations adopt, the pool of the available control units shrinks. Early cohorts have plenty of not-yet-treated locations to compare against. Late cohorts have fewer. This is a fundamental constraint, not a flaw.
 
-<!-- TODO: hand-drawn shrinking-control-buckets.png showing control pool shrinking over time -->
+![Shrinking Controls](/assets/images/posts/staggered-did/shrinking-controls.png)
+*For each cohort month, the blue bars show the number of treatment locations and the gray bars show the available controls. As adoption progresses, the control pool shrinks.*
 
 ### Why TWFE Breaks Here
 
 This is where a standard approach called **two-way fixed effects (TWFE)** runs into trouble. TWFE is a single regression with location fixed effects, time fixed effects, and one treatment indicator. It works well when everyone gets treated at the same time. But when adoption is staggered and there's no permanent control group, it quietly starts using *already-treated* locations as comparisons for late adopters.
 
-Think about it: by the time late adopters start their post-period, the early adopters have already been treated for months. Their metrics are elevated. TWFE doesn't know the difference. It treats any untreated-at-that-moment observation as a valid comparison, including early adopters whose metrics are already inflated by the treatment effect. This pulls the estimate in the wrong direction.
+The concept: by the time late adopters start their post-period, the early adopters have already been treated for months. Their metrics are elevated. TWFE doesn't know the difference. It treats any untreated-at-that-moment observation as a valid comparison, including early adopters whose metrics are already inflated by the treatment effect. This pulls the estimate in the wrong direction.
 
 <!-- TODO: hand-drawn twfe-contamination.png showing data grid with contamination -->
 
-[Callaway and Sant'Anna (2021)](https://doi.org/10.1016/j.jeconom.2020.12.001) and [Sun and Abraham (2021)](https://doi.org/10.1016/j.jeconom.2020.09.006) formalized this problem and showed just how misleading those estimates can be when treatment effects evolve over time. The fix they proposed is essentially what we're doing: estimate treatment effects cohort by cohort, using only not-yet-treated units as controls.
+[Callaway and Sant'Anna (2021)](https://doi.org/10.1016/j.jeconom.2020.12.001) and [Sun and Abraham (2021)](https://doi.org/10.1016/j.jeconom.2020.09.006) formalized this problem and showed just how misleading those estimates can be when treatment effects evolve over time. This problem is what we want to build upon: estimate treatment effects cohort by cohort, using only not-yet-treated units as our control group.
 
 ### Results
 
@@ -255,24 +263,37 @@ Using the cohort-based approach on simulated data where all 200 locations eventu
 | Control (not-yet-treated) | 52.49 | 54.57 | +2.08 |
 | **DiD Estimate** | | | **+4.16** |
 
+![Scenario B Raw Metric Lift](/assets/images/posts/staggered-did/scenario-b-raw-lift.png)
+*Average metric for cohort-defined treatment vs. temporary controls at each event-time period. The gap after Period 0 is the raw treatment effect, measured against locations that haven't started training yet.*
+
+The raw lift is visible but noisier than Scenario A. Here are the event-study regression coefficients:
+
 ![Scenario B Event Study](/assets/images/posts/staggered-did/scenario-b-event-study.png)
 *Event-study coefficients for Scenario B using cohort-defined temporary controls. The pattern is similar to Scenario A: flat pre-period, positive post-period ramp-up. Confidence intervals are wider because the effective control group is smaller.*
 
 ![Scenario B Treatment vs Control](/assets/images/posts/staggered-did/scenario-b-treatment-vs-control.png)
 *Treatment vs. temporary controls in event time. The gap after Period 0 shows the treatment effect, measured against locations that haven't started training yet.*
 
-The estimate recovers the signal, but with wider confidence intervals than Scenario A. That's expected: each cohort has fewer controls to work with, and the controls are different across cohorts.
+The estimate recovers the signal, but with wider confidence intervals than Scenario A. That's expected, and it's worth understanding why.
+
+### Why the Confidence Intervals Are Wider
+
+A **confidence interval** tells you the range of values that are plausible given your data. A 95% CI means: if you repeated this experiment many times with new random samples, about 95% of the intervals you'd compute would contain the true effect. Narrower intervals mean more precision. Wider intervals mean more uncertainty.
+
+In Scenario A, the control group is fixed: the same 80 locations serve as the comparison for every treatment location across the entire timeline. That's a lot of data anchoring the control group average, which keeps variance low and intervals tight.
+
+In Scenario B, each cohort defines its *own* temporary control group. A cohort completing in Month 9 might have 40 controls (locations that haven't started by Month 15). A cohort completing in Month 15 might only have 15 controls (most locations have started by then). Fewer control units means more variance in the control group average for that cohort, which translates to wider intervals on that cohort's estimate. The final estimate pools across all cohorts, but it inherits the noise from the noisier ones. The precision you lose is the cost of not having a permanent holdout, and it's a real tradeoff.
 
 ### Comparing the Two Scenarios
 
 ![Scenario Comparison](/assets/images/posts/staggered-did/scenario-comparison.png)
-*Side by side: Scenario A (clean holdout, blue) vs Scenario B (cohort controls, red). Both recover the treatment effect. Scenario A has tighter confidence intervals because the control group is larger and permanent.*
+*Side by side: Scenario A (clean holdout, blue) vs Scenario B (cohort controls, red). The dashed line marks the true effect built into the simulation (4.5). Both recover the signal. Scenario A has tighter confidence intervals because the control group is larger and permanent.*
 
 ---
 
-## What Happens When You Get It Wrong
+## Why some methods fall short
 
-This is why the framework matters. We ran the same simulated data through three different estimation approaches to see how much the choice of method affects the result. Since this is synthetic data, we know the true treatment effect built into the simulation (4.5 units at full ramp-up), so we can measure how far off each approach lands.
+This is why framework matters. We ran the same simulated data through three different estimation approaches to see how much the choice of method affects the result. Since this is synthetic data, we know the true treatment effect built into the simulation (4.5 units at full ramp-up), so we can measure how far off each approach lands.
 
 ### Approach A: Naive Calendar Cutoff
 
@@ -300,15 +321,15 @@ The takeaway: the choice of analytical framework isn't just an academic exercise
 
 ## Limitations
 
-No approach covers everything. Here are the main things to keep in mind.
+No approach covers everything. For this case I went through an example with some limitations.
 
 ### Pre-Period Contamination
 
-Some trainees are already *in* training during the pre-period months. If training itself disrupts operations (trainee pulled away for classes, other staff covering, workload shifting), then the pre-period metrics might be slightly depressed compared to a truly untouched baseline. This biases your estimate *downward*: the pre-period looks worse than it would without any training disruption, so the measured lift is smaller than the real lift. If you find a positive effect despite this, the true effect is probably larger. That makes your estimates conservative.
+Some trainees are already *in* training during the pre-period months. If training itself disrupts operations (trainee pulled away for classes, other staff covering, workload shifting), then the pre-period metrics might be slightly depressed compared to a truly untouched baseline. This actually biases your estimate *downward*: the pre-period looks worse than it would without any training disruption, so the measured lift is smaller than the real lift. If you find a positive effect despite this, the true effect is probably larger. 
 
 ### Selection Bias from Filtering
 
-By filtering to locations with clean adoption windows and sufficient data, we're studying a specific subset. Locations that adopted within the expected timeframe might have had smoother operations or stronger management support. The treatment effect for those locations could be higher than what you'd see for locations that had a harder time with adoption. The result speaks to locations that implemented properly, which is still a very useful answer, just not a universal one.
+By filtering to locations with clean adoption windows and sufficient data, we're studying a specific subset. Locations that adopted within the expected timeframe might have had smoother operations or stronger management support. The treatment effect for those locations could be higher than what you'd see for locations that had a harder time with adoption. The result speaks to locations that implemented properly, which is still a very useful answer in a lot of business contexts, just not a universal one.
 
 ### Parallel Trends
 

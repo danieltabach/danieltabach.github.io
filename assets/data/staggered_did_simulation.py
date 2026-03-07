@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Patch
 from matplotlib.lines import Line2D
 import statsmodels.api as sm
 import warnings
@@ -220,7 +220,7 @@ def run_event_study_regression(data):
                     (data['period'] >= -6) &
                     (data['period'] <= 6)].copy()
 
-    # Create treatment × period interaction dummies (D_it^k in the model)
+    # Create treatment x period interaction dummies (D_it^k in the model)
     # Each dummy = 1 only if location is treatment AND in period k
     for period in range(-6, 7):
         reg_data[f'period_{period}'] = (
@@ -374,7 +374,7 @@ def plot_naive_did_problem(data, output_path):
     """
     Two-panel figure showing why naive DiD fails with staggered adoption.
     Left: Naive approach (single cutoff) appears to show effect
-    Right: Reality - messy, staggered, hard to see effect
+    Right: Stacked area chart showing treatment group composition over time
     """
     setup_plot_style()
 
@@ -402,24 +402,48 @@ def plot_naive_did_problem(data, output_path):
     ax1.grid(True, alpha=0.3)
     ax1.set_ylim([48, 56])
 
-    # RIGHT PANEL: Reality - show individual treatment location trajectories
-    treatment_locs = data[data['treatment'] == 1]['location_id'].unique()[:12]
+    # RIGHT PANEL: Stacked area chart of treatment group composition
+    treatment_data = data[data['treatment'] == 1].copy()
+    treatment_locs = treatment_data.drop_duplicates('location_id')
 
-    for loc_id in treatment_locs:
-        loc_data = data[data['location_id'] == loc_id].sort_values('month')
-        ax2.plot(loc_data['month'], loc_data['metric'], alpha=0.4, linewidth=1, color='#4A90E2')
+    months = range(1, 25)
+    pre_counts = []
+    training_counts = []
+    post_counts = []
 
-    # Add control average
-    control_avg = data[data['treatment'] == 0].groupby('month')['metric'].mean()
-    ax2.plot(control_avg.index, control_avg.values, linewidth=2.5, color='#999999',
-            label='Control Avg', zorder=10)
+    for month in months:
+        n_pre = 0
+        n_training = 0
+        n_post = 0
+        for _, loc in treatment_locs.iterrows():
+            fc = loc['first_completion']
+            lc = loc['last_completion']
+            a_start = loc['adoption_start']
+            if month < a_start:
+                n_pre += 1
+            elif month >= lc:
+                n_post += 1
+            else:
+                n_training += 1
+        pre_counts.append(n_pre)
+        training_counts.append(n_training)
+        post_counts.append(n_post)
+
+    months_list = list(months)
+    ax2.fill_between(months_list, 0, pre_counts, alpha=0.7,
+                     color='#E8827C', label='Pre-Treatment')
+    training_top = [p + t for p, t in zip(pre_counts, training_counts)]
+    ax2.fill_between(months_list, pre_counts, training_top,
+                     alpha=0.7, color='#999999', label='In Training / Adoption Window')
+    total_top = [p + t + po for p, t, po in zip(pre_counts, training_counts, post_counts)]
+    ax2.fill_between(months_list, training_top, total_top,
+                     alpha=0.7, color='#4A90E2', label='Post-Adoption')
 
     ax2.set_xlabel('Calendar Month', fontweight='bold')
-    ax2.set_ylabel('Metric', fontweight='bold')
-    ax2.set_title('Reality: Staggered Adoption is Messy', fontweight='bold')
-    ax2.legend(loc='upper left')
+    ax2.set_ylabel('Number of Treatment Locations', fontweight='bold')
+    ax2.set_title('Treatment group composition shifts over time', fontweight='bold')
+    ax2.legend(loc='center left', fontsize=9)
     ax2.grid(True, alpha=0.3)
-    ax2.set_ylim([48, 65])
 
     fig.suptitle('Why a Single Cutoff Doesn\'t Work', fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
@@ -429,18 +453,20 @@ def plot_naive_did_problem(data, output_path):
 
 def plot_event_time_normalization(data, output_path):
     """
-    Show transformation from calendar time (left) to event time (right).
-    Same locations, different alignment perspective.
+    Three-panel figure showing transformation from calendar time to event time.
+    Panel 1: Calendar time with adoption stars
+    Panel 2: Calendar time with colored zone overlays
+    Panel 3: Event time (normalized)
     """
     setup_plot_style()
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 5))
 
     # Select 3 treatment locations for cleaner readability
     treatment_locs = data[data['treatment'] == 1]['location_id'].unique()[:3]
     colors_locs = ['#4A90E2', '#E8827C', '#77DD77']
 
-    # LEFT: Calendar time (messy, staggered)
+    # --- PANEL 1: Calendar Time ---
     for i, loc_id in enumerate(treatment_locs):
         loc_data = data[data['location_id'] == loc_id].sort_values('month')
         ax1.plot(loc_data['month'], loc_data['metric'], marker='o', alpha=0.7,
@@ -455,11 +481,42 @@ def plot_event_time_normalization(data, output_path):
 
     ax1.set_xlabel('Calendar Month', fontweight='bold')
     ax1.set_ylabel('Metric', fontweight='bold')
-    ax1.set_title('Calendar Time (Staggered)', fontweight='bold')
-    ax1.legend(loc='upper left', fontsize=9)
+    ax1.set_title('Calendar Time', fontweight='bold')
+    ax1.legend(loc='upper left', fontsize=8)
     ax1.grid(True, alpha=0.3)
 
-    # RIGHT: Event time (aligned)
+    # --- PANEL 2: Mark the Zones ---
+    for i, loc_id in enumerate(treatment_locs):
+        loc_data = data[data['location_id'] == loc_id].sort_values('month')
+        ax2.plot(loc_data['month'], loc_data['metric'], marker='o', alpha=0.7,
+                linewidth=2, label=f'Loc {loc_id}', color=colors_locs[i], markersize=4)
+
+        first_comp = loc_data['first_completion'].iloc[0]
+        last_comp = loc_data['last_completion'].iloc[0]
+        a_start = loc_data['adoption_start'].iloc[0]
+
+        # Colored background zones (semi-transparent, stacked per location)
+        zone_alpha = 0.08
+        # Pre-treatment zone (red)
+        ax2.axvspan(1, a_start, alpha=zone_alpha, color='#E8827C')
+        # Adoption window zone (gray) - from adoption_start to last_completion
+        ax2.axvspan(a_start, last_comp, alpha=zone_alpha, color='#999999')
+        # Post-adoption zone (blue)
+        ax2.axvspan(last_comp, 24, alpha=zone_alpha, color='#4A90E2')
+
+    # Add legend for zones
+    zone_legend = [
+        Patch(facecolor='#E8827C', alpha=0.3, label='Pre-Treatment'),
+        Patch(facecolor='#999999', alpha=0.3, label='Adoption Window'),
+        Patch(facecolor='#4A90E2', alpha=0.3, label='Post-Adoption'),
+    ]
+    ax2.legend(handles=zone_legend, loc='upper left', fontsize=8)
+    ax2.set_xlabel('Calendar Month', fontweight='bold')
+    ax2.set_ylabel('Metric', fontweight='bold')
+    ax2.set_title('Mark the Zones', fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+
+    # --- PANEL 3: Normalize to Event Time ---
     for i, loc_id in enumerate(treatment_locs):
         loc_data = data[data['location_id'] == loc_id].sort_values('month').copy()
         first_comp = loc_data['first_completion'].iloc[0]
@@ -468,23 +525,23 @@ def plot_event_time_normalization(data, output_path):
         loc_data['event_time'] = loc_data['month'] - first_comp
         loc_data_filtered = loc_data[loc_data['event_time'].between(-6, 8)]
 
-        ax2.plot(loc_data_filtered['event_time'], loc_data_filtered['metric'],
+        ax3.plot(loc_data_filtered['event_time'], loc_data_filtered['metric'],
                 marker='o', alpha=0.7, linewidth=2, label=f'Loc {loc_id}',
                 color=colors_locs[i], markersize=4)
 
         # Mark Period 0 (adoption window)
         adoption_data = loc_data_filtered[loc_data_filtered['event_time'] == 0]
         if len(adoption_data) > 0:
-            ax2.scatter(0, adoption_data['metric'].values[0], s=100, marker='*',
+            ax3.scatter(0, adoption_data['metric'].values[0], s=100, marker='*',
                        color=colors_locs[i], edgecolors='black', linewidths=1.5, zorder=10)
 
-    ax2.axvline(x=0, color='red', linestyle='--', alpha=0.5, linewidth=2, label='Period 0 (Adoption)')
-    ax2.fill_between([-0.5, 0.5], 45, 68, alpha=0.1, color='green')
-    ax2.set_xlabel('Event Time (Relative Periods)', fontweight='bold')
-    ax2.set_ylabel('Metric', fontweight='bold')
-    ax2.set_title('Event Time (Aligned)', fontweight='bold')
-    ax2.legend(loc='upper left', fontsize=9)
-    ax2.grid(True, alpha=0.3)
+    ax3.axvline(x=0, color='red', linestyle='--', alpha=0.5, linewidth=2, label='Period 0 (Adoption)')
+    ax3.fill_between([-0.5, 0.5], 45, 68, alpha=0.1, color='green')
+    ax3.set_xlabel('Event Time (Relative Periods)', fontweight='bold')
+    ax3.set_ylabel('Metric', fontweight='bold')
+    ax3.set_title('Normalize to Event Time', fontweight='bold')
+    ax3.legend(loc='upper left', fontsize=8)
+    ax3.grid(True, alpha=0.3)
 
     fig.suptitle('Normalizing to Event Time', fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
@@ -494,7 +551,9 @@ def plot_event_time_normalization(data, output_path):
 
 def plot_event_study_results(coefficients, ci_lower, ci_upper, output_path):
     """
-    Classic event-study plot with coefficients and confidence intervals.
+    Two-panel event-study plot.
+    Left: Shows adoption window months as individual grayed-out points
+    Right: Classic event-study with Period 0 as a single green band
     """
     setup_plot_style()
 
@@ -503,34 +562,80 @@ def plot_event_study_results(coefficients, ci_lower, ci_upper, output_path):
     lower = [ci_lower[p] for p in periods]
     upper = [ci_upper[p] for p in periods]
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-    # Plot confidence intervals as shaded region
-    ax.fill_between(periods, lower, upper, alpha=0.25, color='#4A90E2', label='95% CI')
+    # --- LEFT PANEL: Including Adoption Window Months ---
+    pre_periods = [p for p in periods if p < 0]
+    post_periods = [p for p in periods if p > 0]
+    pre_coefs = [coefficients[p] for p in pre_periods]
+    post_coefs = [coefficients[p] for p in post_periods]
+    pre_lower = [ci_lower[p] for p in pre_periods]
+    pre_upper = [ci_upper[p] for p in pre_periods]
+    post_lower = [ci_lower[p] for p in post_periods]
+    post_upper = [ci_upper[p] for p in post_periods]
 
-    # Plot point estimates
-    ax.plot(periods, coefs, marker='o', linewidth=2.5, markersize=8,
-           color='#4A90E2', label='Point Estimate', zorder=5)
+    # Plot pre-period normally
+    ax1.fill_between(pre_periods, pre_lower, pre_upper, alpha=0.25, color='#4A90E2')
+    ax1.plot(pre_periods, pre_coefs, marker='o', linewidth=2.5, markersize=8,
+            color='#4A90E2', zorder=5)
 
-    # Horizontal line at 0
-    ax.axhline(y=0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    # Plot post-period normally
+    ax1.fill_between(post_periods, post_lower, post_upper, alpha=0.25, color='#4A90E2')
+    ax1.plot(post_periods, post_coefs, marker='o', linewidth=2.5, markersize=8,
+            color='#4A90E2', zorder=5)
 
-    # Shade Period 0 (adoption window)
-    ax.axvspan(-0.5, 0.5, alpha=0.1, color='green', label='Adoption Window (Period 0)')
+    # Show 6 individual adoption window months as gray hollow markers
+    adoption_months_x = np.linspace(-0.4, 0.4, 6)
+    for x_pos in adoption_months_x:
+        ax1.scatter(x_pos, 0, s=60, marker='o', facecolors='none',
+                   edgecolors='#999999', linewidths=1.5, zorder=6, alpha=0.7)
 
-    # Shade pre-treatment periods
-    ax.axvspan(-6.5, -0.5, alpha=0.05, color='gray')
+    # Shade adoption window
+    ax1.axvspan(-0.5, 0.5, alpha=0.15, color='#999999')
 
-    ax.set_xlabel('Relative Time Period', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Treatment Effect (Coefficient)', fontsize=12, fontweight='bold')
-    ax.set_title('Event-Study Estimates: Treatment Effect by Relative Period',
-                fontsize=13, fontweight='bold', pad=15)
+    ax1.axhline(y=0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    ax1.axvspan(-6.5, -0.5, alpha=0.05, color='gray')
 
-    ax.set_xticks(periods)
-    ax.set_xticklabels([str(p) if p != 0 else 'Period 0' for p in periods], rotation=45)
-    ax.legend(loc='upper left', fontsize=10)
-    ax.grid(True, alpha=0.3, axis='y')
+    ax1.set_xlabel('Relative Time Period', fontsize=11, fontweight='bold')
+    ax1.set_ylabel('Treatment Effect (Coefficient)', fontsize=11, fontweight='bold')
+    ax1.set_title('Including Adoption Window Months', fontweight='bold')
+    ax1.set_xticks(periods)
+    ax1.set_xticklabels([str(p) if p != 0 else '0' for p in periods], rotation=45)
+    ax1.grid(True, alpha=0.3, axis='y')
 
+    # Add annotation for gray dots
+    ax1.annotate('6 adoption months\n(excluded from estimate)',
+                xy=(0, 0), xytext=(2.5, -2.5),
+                fontsize=9, fontstyle='italic', color='#666666',
+                arrowprops=dict(arrowstyle='->', color='#999999', lw=1),
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='#f0f0f0', alpha=0.8))
+
+    # --- RIGHT PANEL: Event-Study Coefficients (classic) ---
+    ax2.fill_between(periods, lower, upper, alpha=0.25, color='#4A90E2', label='95% CI')
+    ax2.plot(periods, coefs, marker='o', linewidth=2.5, markersize=8,
+            color='#4A90E2', label='Point Estimate', zorder=5)
+
+    ax2.axhline(y=0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    ax2.axvspan(-0.5, 0.5, alpha=0.1, color='green', label='Adoption Window (Period 0)')
+    ax2.axvspan(-6.5, -0.5, alpha=0.05, color='gray')
+
+    ax2.set_xlabel('Relative Time Period', fontsize=11, fontweight='bold')
+    ax2.set_ylabel('Treatment Effect (Coefficient)', fontsize=11, fontweight='bold')
+    ax2.set_title('Event-Study Coefficients', fontweight='bold')
+    ax2.set_xticks(periods)
+    ax2.set_xticklabels([str(p) if p != 0 else 'Period 0' for p in periods], rotation=45)
+    ax2.legend(loc='upper left', fontsize=10)
+    ax2.grid(True, alpha=0.3, axis='y')
+
+    # Match y-axes
+    all_vals = lower + upper
+    y_min = min(all_vals) - 0.5
+    y_max = max(all_vals) + 0.5
+    ax1.set_ylim(y_min, y_max)
+    ax2.set_ylim(y_min, y_max)
+
+    fig.suptitle('Event-Study Estimates: Treatment Effect by Relative Period',
+                fontsize=13, fontweight='bold', y=1.02)
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
@@ -584,7 +689,7 @@ def plot_parallel_trends(data, output_path):
 
     ax.legend(loc='upper left', fontsize=11)
     ax.grid(True, alpha=0.3)
-    # Let matplotlib auto-scale the Y-axis to avoid exaggerating divergence
+    ax.set_ylim(40, 65)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -636,7 +741,7 @@ def run_naive_cutoff_did(data):
     and run a simple before/after comparison.
 
     This is what most people try first. It underestimates because of
-    composition bias — at any given month, the treatment group is a mix
+    composition bias -- at any given month, the treatment group is a mix
     of locations at different adoption stages.
     """
     # Use median first_completion as the cutoff
@@ -665,7 +770,7 @@ def run_naive_twfe(data):
     """
     Standard two-way fixed effects regression with individual treatment timing.
     Each treatment location's 'post' indicator uses its own first_completion date.
-    Single treatment coefficient (post × treatment), location FE, time FE.
+    Single treatment coefficient (post x treatment), location FE, time FE.
 
     This is what Callaway & Sant'Anna showed can be biased under staggered timing
     because already-treated locations serve as implicit controls for later adopters.
@@ -938,7 +1043,7 @@ def plot_method_lift_comparison(data, output_path):
                linewidth=2, label=f'Single Cutoff (Month {median_cutoff})')
     ax1.set_xlabel('Calendar Month', fontsize=11, fontweight='bold')
     ax1.set_ylabel('Average Metric', fontsize=11, fontweight='bold')
-    ax1.set_title('A: Naive Calendar Cutoff — One line for all treatment locations, one arbitrary split',
+    ax1.set_title('A: Naive Calendar Cutoff -- One line for all treatment locations, one arbitrary split',
                  fontsize=12, fontweight='bold', pad=10)
     ax1.legend(loc='upper left', fontsize=10)
     ax1.grid(True, alpha=0.3)
@@ -989,7 +1094,7 @@ def plot_method_lift_comparison(data, output_path):
 
     ax2.set_xlabel('Calendar Month', fontsize=11, fontweight='bold')
     ax2.set_ylabel('Average Metric', fontsize=11, fontweight='bold')
-    ax2.set_title('B: Standard TWFE — Uses individual timing, but pools early and late adopters into one estimate',
+    ax2.set_title('B: Standard TWFE -- Uses individual timing, but pools early and late adopters into one estimate',
                  fontsize=12, fontweight='bold', pad=10)
     ax2.legend(loc='upper left', fontsize=9)
     ax2.grid(True, alpha=0.3)
@@ -1016,7 +1121,7 @@ def plot_method_lift_comparison(data, output_path):
                          color='#4A90E2', label='Treatment Effect')
     ax3.set_xlabel('Relative Period (Event Time)', fontsize=11, fontweight='bold')
     ax3.set_ylabel('Average Metric', fontsize=11, fontweight='bold')
-    ax3.set_title('C: Event-Study Design — Each location aligned to its own adoption, effect measured in relative time',
+    ax3.set_title('C: Event-Study Design -- Each location aligned to its own adoption, effect measured in relative time',
                  fontsize=12, fontweight='bold', pad=10)
     ax3.legend(loc='upper left', fontsize=10)
     ax3.grid(True, alpha=0.3)
@@ -1396,6 +1501,7 @@ def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
                               output_path):
     """
     Side-by-side event-study plots: Scenario A vs Scenario B.
+    Includes true effect reference line at y=4.5.
     """
     setup_plot_style()
 
@@ -1403,6 +1509,8 @@ def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
 
     periods_a = sorted(coefs_a.keys())
     periods_b = sorted(coefs_b.keys())
+
+    true_effect = 4.5
 
     # Scenario A
     ax1.fill_between(
@@ -1418,11 +1526,14 @@ def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
     )
     ax1.axhline(y=0, color='black', linestyle='-',
                 linewidth=1, alpha=0.5)
+    ax1.axhline(y=true_effect, color='black', linestyle='--',
+                linewidth=1.5, alpha=0.7, label=f'True Effect ({true_effect})')
     ax1.axvspan(-0.5, 0.5, alpha=0.1, color='green')
     ax1.set_xlabel('Relative Period', fontweight='bold')
     ax1.set_ylabel('Treatment Effect', fontweight='bold')
     ax1.set_title('Scenario A: Clean Holdout',
                   fontweight='bold')
+    ax1.legend(loc='upper left', fontsize=10)
     ax1.grid(True, alpha=0.3, axis='y')
 
     # Scenario B
@@ -1439,11 +1550,14 @@ def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
     )
     ax2.axhline(y=0, color='black', linestyle='-',
                 linewidth=1, alpha=0.5)
+    ax2.axhline(y=true_effect, color='black', linestyle='--',
+                linewidth=1.5, alpha=0.7, label=f'True Effect ({true_effect})')
     ax2.axvspan(-0.5, 0.5, alpha=0.1, color='green')
     ax2.set_xlabel('Relative Period', fontweight='bold')
     ax2.set_ylabel('Treatment Effect', fontweight='bold')
     ax2.set_title('Scenario B: Cohort Controls',
                   fontweight='bold')
+    ax2.legend(loc='upper left', fontsize=10)
     ax2.grid(True, alpha=0.3, axis='y')
 
     # Match y-axes
@@ -1452,6 +1566,7 @@ def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
         + [ci_hi_a[p] for p in periods_a]
         + [ci_lo_b[p] for p in periods_b]
         + [ci_hi_b[p] for p in periods_b]
+        + [true_effect]
     )
     y_min = min(all_vals) - 0.5
     y_max = max(all_vals) + 0.5
@@ -1460,6 +1575,175 @@ def plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a,
 
     fig.suptitle('Event-Study Estimates: Two Scenarios',
                  fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+# ============================================================================
+# 6b. ADDITIONAL VISUALIZATION FUNCTIONS
+# ============================================================================
+
+def plot_shrinking_controls(cohort_data, output_path):
+    """
+    Grouped bar chart showing treatment count vs available control count
+    per cohort month. As cohort month increases, controls shrink.
+    """
+    setup_plot_style()
+
+    # Get unique cohort months
+    cohort_months = sorted(cohort_data['cohort'].unique())
+
+    treat_counts = []
+    control_counts = []
+
+    for cm in cohort_months:
+        cm_data = cohort_data[cohort_data['cohort'] == cm]
+        n_treat = cm_data[cm_data['cohort_treatment'] == 1]['location_id'].nunique()
+        n_ctrl = cm_data[cm_data['cohort_treatment'] == 0]['location_id'].nunique()
+        treat_counts.append(n_treat)
+        control_counts.append(n_ctrl)
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    x = np.arange(len(cohort_months))
+    width = 0.35
+
+    bars_treat = ax.bar(x - width/2, treat_counts, width,
+                        color='#4A90E2', label='Treatment Locations',
+                        edgecolor='black', alpha=0.85)
+    bars_ctrl = ax.bar(x + width/2, control_counts, width,
+                       color='#999999', label='Available Control Locations',
+                       edgecolor='black', alpha=0.85)
+
+    ax.set_xlabel('Cohort Month (First Completion)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Number of Locations', fontsize=12, fontweight='bold')
+    ax.set_title('Shrinking Control Pool: Later Cohorts Have Fewer Controls',
+                fontsize=13, fontweight='bold', pad=15)
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(int(cm)) for cm in cohort_months], rotation=45)
+    ax.legend(loc='upper right', fontsize=10)
+    ax.grid(True, alpha=0.3, axis='y')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+def plot_raw_metric_lift(data, output_path):
+    """
+    Plot actual average metric values by event-time period for
+    treatment vs control groups (Scenario A).
+    Shows the raw lift with filled area in post-period.
+    """
+    setup_plot_style()
+
+    event_data = data[
+        data['period'].notna()
+        & (data['period'] >= -6)
+        & (data['period'] <= 6)
+    ].copy()
+
+    agg = event_data.groupby(
+        ['period', 'treatment']
+    )['metric'].mean().reset_index()
+
+    treat = agg[agg['treatment'] == 1].sort_values('period')
+    ctrl = agg[agg['treatment'] == 0].sort_values('period')
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    ax.plot(treat['period'], treat['metric'], marker='o',
+            linewidth=2.5, markersize=8, color='#4A90E2',
+            label='Treatment', zorder=5)
+    ax.plot(ctrl['period'], ctrl['metric'], marker='s',
+            linewidth=2.5, markersize=8, color='#999999',
+            label='Control', zorder=5)
+
+    # Filled area in post-period
+    post_treat = treat[treat['period'] > 0]
+    post_ctrl = ctrl[ctrl['period'] > 0]
+    if len(post_treat) == len(post_ctrl):
+        ax.fill_between(post_treat['period'].values,
+                        post_ctrl['metric'].values,
+                        post_treat['metric'].values,
+                        alpha=0.2, color='#4A90E2',
+                        label='Treatment Effect (Lift)')
+
+    # Green band on period 0
+    ax.axvspan(-0.5, 0.5, alpha=0.1, color='green',
+               label='Adoption Window (Period 0)')
+
+    ax.set_xlabel('Relative Period (Event Time)', fontsize=12,
+                  fontweight='bold')
+    ax.set_ylabel('Average Metric Value', fontsize=12,
+                  fontweight='bold')
+    ax.set_title('Scenario A: Raw Metric Lift by Event-Time Period',
+                fontsize=13, fontweight='bold', pad=15)
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+def plot_scenario_b_raw_lift(cohort_data, output_path):
+    """
+    Plot actual average metric values by event-time period for
+    treatment vs control groups (Scenario B cohort data).
+    Shows the raw lift with filled area in post-period.
+    """
+    setup_plot_style()
+
+    event_data = cohort_data[
+        cohort_data['period'].notna()
+        & (cohort_data['period'] >= -6)
+        & (cohort_data['period'] <= 6)
+    ].copy()
+
+    agg = event_data.groupby(
+        ['period', 'cohort_treatment']
+    )['metric'].mean().reset_index()
+
+    treat = agg[agg['cohort_treatment'] == 1].sort_values('period')
+    ctrl = agg[agg['cohort_treatment'] == 0].sort_values('period')
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    ax.plot(treat['period'], treat['metric'], marker='o',
+            linewidth=2.5, markersize=8, color='#E8827C',
+            label='Treatment (Cohort)', zorder=5)
+    ax.plot(ctrl['period'], ctrl['metric'], marker='s',
+            linewidth=2.5, markersize=8, color='#999999',
+            label='Control (Not-Yet-Treated)', zorder=5)
+
+    # Filled area in post-period
+    post_treat = treat[treat['period'] > 0]
+    post_ctrl = ctrl[ctrl['period'] > 0]
+    if len(post_treat) == len(post_ctrl):
+        ax.fill_between(post_treat['period'].values,
+                        post_ctrl['metric'].values,
+                        post_treat['metric'].values,
+                        alpha=0.2, color='#E8827C',
+                        label='Treatment Effect (Lift)')
+
+    # Green band on period 0
+    ax.axvspan(-0.5, 0.5, alpha=0.1, color='green',
+               label='Adoption Window (Period 0)')
+
+    ax.set_xlabel('Relative Period (Event Time)', fontsize=12,
+                  fontweight='bold')
+    ax.set_ylabel('Average Metric Value', fontsize=12,
+                  fontweight='bold')
+    ax.set_title('Scenario B: Raw Metric Lift by Event-Time Period',
+                fontsize=13, fontweight='bold', pad=15)
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
@@ -1528,6 +1812,7 @@ def main(output_dir=None):
     plot_control_comparison(data, f"{output_dir}/control-comparison.png")
     plot_method_comparison(naive_cutoff, twfe_estimate, event_study_avg_a, true_effect, f"{output_dir}/method-comparison.png")
     plot_method_lift_comparison(data, f"{output_dir}/method-lift-comparison.png")
+    plot_raw_metric_lift(data, os.path.join(output_dir, 'scenario-a-raw-lift.png'))
 
 
 
@@ -1560,6 +1845,8 @@ def main(output_dir=None):
         plot_scenario_b_event_study(coefs_b, ci_lo_b, ci_hi_b, f"{output_dir}/scenario-b-event-study.png")
         plot_scenario_b_treatment_vs_control(cohort_data, f"{output_dir}/scenario-b-treatment-vs-control.png")
         plot_scenario_comparison(coefs_a, ci_lo_a, ci_hi_a, coefs_b, ci_lo_b, ci_hi_b, f"{output_dir}/scenario-comparison.png")
+        plot_shrinking_controls(cohort_data, os.path.join(output_dir, 'shrinking-controls.png'))
+        plot_scenario_b_raw_lift(cohort_data, os.path.join(output_dir, 'scenario-b-raw-lift.png'))
     else:
         print("WARNING: Scenario B produced no cohort data")
 
@@ -1577,6 +1864,9 @@ def main(output_dir=None):
         'scenario-b-event-study.png',
         'scenario-b-treatment-vs-control.png',
         'scenario-comparison.png',
+        'shrinking-controls.png',
+        'scenario-a-raw-lift.png',
+        'scenario-b-raw-lift.png',
     ]
 
     print("\nFile generation verification:")
