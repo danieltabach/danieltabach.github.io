@@ -6,7 +6,7 @@ This script generates synthetic panel data for a multi-location service organiza
 rolling out new operational software, with staggered adoption times across locations.
 It produces publication-quality visualizations and event-study regression results.
 
-Author: [Your Name]
+Author: Danny Tabach
 Date: 2026
 """
 

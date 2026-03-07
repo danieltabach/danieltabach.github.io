@@ -17,46 +17,44 @@ toc: false
 
 ## Introduction
 
-You work at a company with hundreds of locations. Your data science team designs an experiment: roll out a new product to a subset of locations, keep the rest as a control group, and measure the impact on efficiency metrics. Clean design. Leadership approves it. Everyone is aligned.
+You work at a company with hundreds of locations. The data science team designs an experiment: roll out new software to a subset of locations, keep the rest as a control group, and measure the impact on some efficiency metric. Everything is ready to go and the experiment looks sound.
 
-In practice though, large-scale rollouts almost always end up staggered.
+In practice though, large-scale rollouts almost always end up staggered. The rollout was supposed to start in March across all treatment locations simultaneously. Instead, some locations start in March, some in June, and a few don't start until September. By the end of the year, every treatment location adopted on its own timeline, and there's no single "before" and "after" to compare.
 
-The rollout was supposed to start in March across all treatment locations simultaneously. Instead, some locations start in March, some in June, and maybe a few don't start until September. Each location has multiple trainees who need to get ramped on the new system, and the training takes about six months per person. Some managers set up all their staff through training at the same time. Others stagger it one person at a time. So, by the end of the year, you're staring at a dataset where every treatment location adopted on its own timeline, and there is no single "before" and "after" to compare. So how do we adequately capture treatment effects? Is there a way to make conclusions when perfect compliance to a test isn't feasible?
+This is the staggered adoption problem, one of the most common compliance challenges in field experiments. The good news: there's a well-established framework for handling it.
 
-This is the staggered adoption problem, one of the most common compliance challenges in field experiments. The good news: there's a well-established framework for getting a clean read even when adoption timing is messy.
-
-This post walks through the problem, why simpler approaches fall short, and a technique called "event-study design" that handles it. We'll focus on the *framework* itself: how to think about it, how to apply it, and how to read the results. Full code is available in the [Appendix](#appendix-the-formal-model) for a reproducible walkthrough!
+This post walks through how standard Difference-in-Differences works, where the assumptions break under staggered adoption, and how an approach called "event-study design" fixes it. Full code is in the [Appendix](#appendix-the-formal-model) if you want to skip the wall of text.
 
 ---
 
 ## What Does Staggered Adoption Actually Look Like?
 
-Imagine a location with 3 trainees who each need 6 months of training on the new software. Each orange bar below is one person's training timeline:
+Lets look at single-location examples with 3 trainees who each need 6 months of training on the new software. Each orange arrow below is one person's training timeline (For this example lets assume in the data we assume they either start/end on the first/last day of the month):
 
 There is no single month where treatment switches on. Every location defines its own adoption timeline.
 ![Staggered Adoption Skeleton](/assets/images/posts/staggered-did/skeleton_staggered.png)
-*Three locations, each with trainees on different timelines. Some managers start everyone together, others spread it out.*
+*For these example, each trainee is on different timelines. Some managers start everyone together, others spread it out.*
 
 ---
 
 ## Why Simpler Approaches Fall Short
 
-One could make an argument "why not pick a single cutoff date?". Maybe you use the median adoption month, or the month when "most" locations were done. Then you compare everything before that date to everything after.
+The natural first instinct: just pick a single cutoff date. Maybe you use the median adoption month, or the month when "most" locations were done. Then you compare everything before that date to everything after.
 
-The problem is subtle. At any given calendar month, your treatment group is a *mix* of locations at completely different stages. Some have been fully operational on the new system for months. Some just finished training. Some haven't started. When you average across all of them, you're averaging together strong effects, weak effects, and zero effects. The result is a diluted number that underestimates the real impact.
+The problem is; at any given calendar month, your treatment group becomes a *mix* of locations at completely different stages. Some have been fully operational on the new software for months. Some just finished training. Some haven't started. When you average across all of them, you're averaging together strong effects, weak effects, and zero effects. The result is a diluted number that underestimates the real impact.
 
-This is **composition bias**. The mix of locations changes at every time point. At Month 8, your average includes some fully-adopted locations, some mid-training, and some that haven't started. At Month 14, it's a completely different mix. You're not comparing the same thing to itself across time. The composition of your treatment group is shifting underneath you, and that shifting can even flip the directionality of your estimate.
+This is **composition bias**. The mix of locations changes at every time point. At Month 8, your average might include some fully-adopted locations, some mid-training, and some that haven't started. At Month 14, it's a completely different mix. You're not comparing the same thing to itself across time. The composition of your treatment group is shifting underneath you, and that shifting can even flip the directionality of your estimate.
 
 ![Naive DiD Problem](/assets/images/posts/staggered-did/naive-did-problem.png)
 *Left: A naive single-cutoff DiD looks clean but averages across locations at different adoption stages. Right: The actual location-level data is messy. A single cutoff blurs all of this together.*
 
-In the econometrics literature, the standard approach to this kind of problem is called "two-way fixed effects" (TWFE): a single regression that controls for each location and each time period, then estimates one overall treatment effect. It works well when everyone gets treated at the same time. But when adoption is staggered, it quietly starts using already-treated locations as comparisons for late adopters, which can pull the estimate in the wrong direction. [Callaway and Sant'Anna (2021)](https://doi.org/10.1016/j.jeconom.2020.12.001) and [Sun and Abraham (2021)](https://doi.org/10.1016/j.jeconom.2020.09.006) formalized this problem and showed just how misleading those estimates can be when treatment effects evolve over time.
+There *is* a standard approach to this kind of problem called "two-way fixed effects" (TWFE): a single regression that controls for each location and each time period, then estimates one overall treatment effect. It works well when everyone gets treated at the same time. However, when adoption is staggered to a larger extent (like in this example), it quietly starts using already-treated locations as comparisons for late adopters, which can pull the estimate in the wrong direction. [Callaway and Sant'Anna (2021)](https://doi.org/10.1016/j.jeconom.2020.12.001) and [Sun and Abraham (2021)](https://doi.org/10.1016/j.jeconom.2020.09.006) formalized this problem and showed just how misleading those estimates can be when treatment effects evolve over time.
 
 ---
 
 ## The Fix: Normalize to Event Time
 
-In practice, it's not always easy to land on one calendar date, so we let each location define its own timeline.
+Instead of forcing a single cutoff, we let each location define its own timeline (for this example we filter this downstream).
 
 ### Defining the Adoption Window
 
@@ -90,11 +88,11 @@ In the chart, the star markers indicate the moment when each location's first tr
 
 ## Getting a Clean Sample
 
-Trimming the sample feels counterintuitive. Normally more data is better. But here, keeping every location regardless of data quality introduces more noise and bias than it removes. In this example, we apply three filters, and each one has the same underlying logic: without it, the read is less trustworthy and more likely to be scrutinized for noise.
+Trimming the sample feels counterintuitive, but keeping every location regardless of data quality introduces more noise than it removes. We apply three filters, and each one has the same underlying logic: without it, the read is less trustworthy.
 
 ### Filter 1: Bounded Adoption Window
 
-If a location's adoption window stretches beyond 6 months, we set it aside for this analysis. The reasoning is straightforward: if it took 14 months from first completion to last, the blackout window would eat almost the entire timeline. There wouldn't be enough clean pre or post data left to measure anything meaningful.
+If a location's adoption window stretches beyond 6 months, we set it aside for this analysis. If it took 14 months from first completion to last, the blackout window would eat almost the entire timeline. There wouldn't be enough clean pre or post data left to measure anything meaningful.
 
 Most locations in our dataset fell within this window. Training itself takes 6 months, and most managers either trained everyone together (adoption window = 0 months) or staggered within a few months. The locations with extremely long adoption windows were the exception.
 
@@ -108,7 +106,7 @@ There's a more technical reason too. If some locations contribute data at Period
 
 ### Filter 3: Minimum Post-Period Data
 
-Same logic in the other direction. We need enough post-adoption months to actually measure whether the treatment effect materializes, ramps up, or fades. A location with only 1 month of post-data contributes almost nothing to the analysis and introduces noise.
+Same logic in the other direction. We need enough post-adoption months to actually measure whether the treatment effect materializes, ramps up, or fades. If we only see one month of post-data, we can't tell whether the lift is real, still building, or just noise from a good month. A location with that little data contributes almost nothing to the analysis.
 
 ### The Tradeoff
 
@@ -127,7 +125,7 @@ Here's what that looks like concretely. Three treatment locations adopted at dif
 ![Control Group Comparison](/assets/images/posts/staggered-did/control-comparison.png)
 *Three treatment locations with different adoption timings. The double arrows show where each location's post-adoption metric is compared to the control group average at the same calendar month. Different event times, same calendar-month comparison.*
 
-This is the standard Difference-in-Differences setup: comparing outcomes at the same point in time between a group that received the intervention and a group that didn't. The control group serves as the counterfactual. If the metric would have gone up anyway (due to seasonality, company-wide trends, or market conditions), the control group captures that, and the difference strips it out. This isn't cherry-picking or p-hacking. It's the fundamental design. The control group IS the holdout.
+A reasonable question here is whether choosing concurrent comparisons introduces bias. It doesn't. This is the standard Difference-in-Differences setup: comparing outcomes at the same point in time between a group that received the intervention and a group that didn't. The control group serves as the counterfactual. If the metric would have gone up anyway (due to seasonality, company-wide trends, or market conditions), the control group captures that, and the difference strips it out. The control group IS the holdout.
 
 The **parallel trends assumption** is the foundation. Before any treatment happened, were treatment and control locations moving in the same direction at the same rate? If yes, we can attribute the post-adoption divergence to the treatment. If not, the results become much harder to interpret.
 
@@ -161,7 +159,7 @@ The event-study regression (details in the [Appendix](#appendix-the-formal-model
 
 ## Results: What Did We Find?
 
-At its core, Difference-in-Differences is straightforward. We look at how much the treatment group's metric changed from pre to post, subtract how much the control group changed over the same window (to strip out background trends), and whatever is left over is the treatment effect.
+The idea behind DiD is simple: look at how much the treatment group's metric changed from pre to post, subtract how much the control group changed over the same window (to strip out background trends), and whatever is left is the treatment effect.
 
 ### The Numbers
 
@@ -172,6 +170,8 @@ At its core, Difference-in-Differences is straightforward. We look at how much t
 | **DiD Estimate** | | | **+3.98** |
 
 The treatment group's metric went up by 6.08. The control group also went up by 2.10 (background trend, maybe seasonality, maybe the whole market improving). The difference-in-differences strips out that background trend: 6.08 - 2.10 = **3.98 units attributable to the treatment**.
+
+That's the kind of number that changes a recommendation. If the lift is real and meaningful, it justifies expanding the rollout. If the naive approach had been the only estimate on the table, you'd be underselling the program by nearly 30%.
 
 ### Treatment vs. Control Over Time
 
@@ -246,11 +246,11 @@ Consider alternatives when you don't have a control group (synthetic control met
 
 Staggered adoption is easy to overlook, but it can quietly bias your estimates in ways that are hard to detect. Standard DiD assumes a clean before/after boundary. When treatment timing varies, that boundary doesn't exist, and forcing one creates composition bias that can dilute or reverse your results.
 
-The fix is to stop looking for a universal boundary and let each unit define its own. Event-time normalization aligns all units to a common reference point, blacks out the messy transition period, and measures outcomes in relative time. The event-study regression estimates treatment effects at each distance from adoption, with built-in validation through the flat pre-period test.
+The fix: stop looking for a universal boundary and let each unit define its own. Normalize to event time, black out the messy transition, and measure outcomes relative to each unit's adoption. The event-study regression gives you treatment effects at each distance from adoption, with built-in validation through the flat pre-period test.
 
-A few things to remember. The adoption window threshold is a judgment call. Pick something defensible, then run sensitivity checks. Filtering to clean adopters trades sample size for a trustworthy read. Require balanced data on both sides of the window to avoid composition bias sneaking back in. And the parallel trends assumption matters more than anything else. Always test it, always plot it.
+A few things to keep in mind. The adoption window threshold is a judgment call, so pick something defensible and run sensitivity checks. Filtering to clean adopters trades sample size for a trustworthy read. Require balanced data on both sides of the window to avoid composition bias sneaking back in. And the parallel trends assumption matters more than anything else. Always test it, always plot it.
 
-This technique goes by several names: event-study design, staggered DiD, group-time treatment effects. Callaway and Sant'Anna (2021), Sun and Abraham (2021), and Goodman-Bacon (2021) are the formal references. But the intuition is simple: when treatment timing is messy, normalize it.
+If you're running experiments at scale and adoption timing isn't perfectly controlled (it almost never is), this is the framework. It goes by several names: event-study design, staggered DiD, group-time treatment effects. Callaway and Sant'Anna (2021), Sun and Abraham (2021), and Goodman-Bacon (2021) are the formal references. But the intuition is simple: when treatment timing is messy, normalize it.
 
 ---
 
