@@ -1,4 +1,10 @@
 _site
 .sass-cache
 .jekyll-metadata
-Gemfile.lock.claude/
+Gemfile.lock
+.claude/
+CLAUDE.md
+PROJECT-MAP.md
+STYLE-GUIDE.md
+_preview.html
+nul
