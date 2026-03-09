@@ -8,6 +8,7 @@ author_profile: true
 classes: wide
 header:
   teaser: /assets/images/posts/staggered-did/event-study-teaser.png
+  og_image: /assets/images/posts/staggered-did/event-study-teaser.png
 toc: true
 toc_sticky: true
 ---

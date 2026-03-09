@@ -8,6 +8,7 @@ author_profile: false
 classes: wide
 header:
   teaser: /assets/images/posts/interactive_hospitals_map/thumbnail.PNG
+  og_image: /assets/images/posts/interactive_hospitals_map/thumbnail.PNG
 toc: false
 ---
 

@@ -8,6 +8,7 @@ author_profile: false
 classes: wide
 header:
   teaser: /assets/images/posts/magnus_carlsen_tableau/thumbnail.PNG
+  og_image: /assets/images/posts/magnus_carlsen_tableau/thumbnail.PNG
 toc: false
 ---
 
