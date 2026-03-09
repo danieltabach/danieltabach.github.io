@@ -58,6 +58,27 @@
     line-height: 1.5;
   }
 
+  /* Wide layout TOC: fixed sidebar matching MM default styling.
+     Content keeps full wide width since TOC is out of flow. */
+  @media (min-width: 80em) {
+    .wide .sidebar__right {
+      position: fixed;
+      top: 4em;
+      right: 2em;
+      width: 300px;
+      max-height: calc(100vh - 6em);
+      overflow-y: auto;
+      z-index: 10;
+    }
+  }
+
+  /* Hide on screens without enough margin space */
+  @media (max-width: 79.99em) {
+    .wide .sidebar__right {
+      display: none;
+    }
+  }
+
   /* Hide deeply nested TOC entries (from inside details blocks) */
   .sidebar__right .toc__menu ul ul ul {
     display: none;
