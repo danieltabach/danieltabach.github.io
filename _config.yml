@@ -9,6 +9,7 @@ description: >-
 url: "https://danieltabach.github.io"
 baseurl: ""
 repository: "danieltabach/danieltabach.github.io"
+og_image: /assets/images/og-preview.png
 
 # Social
 github_username: danieltabach
