@@ -58,46 +58,8 @@
     line-height: 1.5;
   }
 
-  /* Wide layout + TOC: float in right margin, only on
-     screens wide enough to have real margin space (1600px+) */
-  @media (min-width: 100em) {
-    .wide .sidebar__right {
-      position: fixed;
-      top: 4em;
-      right: 3em;
-      width: 250px;
-      max-height: calc(100vh - 6em);
-      overflow-y: auto;
-      font-size: 1em;
-      background: #fff;
-      border-left: 3px solid #4a86c8;
-      border-radius: 4px;
-      padding: 1.2em 1.2em 1.2em 1.4em;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      z-index: 10;
-    }
-
-    .wide .sidebar__right .toc__menu a {
-      color: #555;
-      padding: 0.35em 0;
-      display: block;
-      line-height: 1.4;
-    }
-
-    .wide .sidebar__right .toc__menu a:hover {
-      color: #4a86c8;
-    }
-
-    /* Hide h3+ subheadings from TOC (detail block internals) */
-    .wide .sidebar__right .toc__menu ul ul ul {
-      display: none;
-    }
-  }
-
-  /* Below 1600px: hide floating TOC to avoid overlap */
-  @media (max-width: 99.99em) {
-    .wide .sidebar__right {
-      display: none;
-    }
+  /* Hide deeply nested TOC entries (from inside details blocks) */
+  .sidebar__right .toc__menu ul ul ul {
+    display: none;
   }
 </style>
