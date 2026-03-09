@@ -7,7 +7,7 @@ tags: [python, causal-inference, difference-in-differences, event-study, econome
 author_profile: true
 classes: wide
 header:
-  teaser: /assets/images/posts/staggered-did/event-study-plot.png
+  teaser: /assets/images/posts/staggered-did/event-study-teaser.png
 toc: false
 ---
 
