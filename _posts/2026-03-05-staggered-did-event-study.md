@@ -8,7 +8,8 @@ author_profile: true
 classes: wide
 header:
   teaser: /assets/images/posts/staggered-did/event-study-teaser.png
-toc: false
+toc: true
+toc_sticky: true
 ---
 
 *You designed an experiment. Leadership signed off. The rollout took on a life of its own. Now what?*
@@ -47,11 +48,10 @@ DiD works cleanly when the rollout happens all at once. Everyone gets treated on
 
 ## What Does Staggered Adoption Actually Look Like?
 
-Let's look at a case study with single-location examples. For each location let's say we have 3 trainees who each need 6 months of training on the new software. Each orange arrow below is one person's training timeline (for this example, let's assume in the data they either start/end on the first/last day of the month):
+Let's look at a case study with single-location examples. For each location, let's say we have 3 trainees who each need 6 months of training on the new software. Each orange arrow below is one person's training timeline (for this example, let's assume in the data they either start/end on the first/last day of the month). There is no single month where treatment switches on. Every location defines its own adoption timeline.
 
-There is no single month where treatment switches on. Every location defines its own adoption timeline. 
 ![Staggered Adoption Skeleton](/assets/images/posts/staggered-did/skeleton_staggered.png)
-*For these examples, each trainee is on different timelines. Some managers start everyone together, others spread it out.*
+*Each trainee is on a different timeline. Some managers start everyone together, others spread it out.*
 
 ---
 
@@ -337,7 +337,7 @@ The answer: locations that haven't started yet. For each cohort of locations com
 | Locations completing in Month 12 | Those locations | Locations whose training hasn't started by Month 18 |
 | Locations completing in Month 15 | Those locations | Locations whose training hasn't started by Month 21 |
 
-As more locations adopt, the pool of the available control units shrinks. Early cohorts have plenty of not-yet-treated locations to compare against. Late cohorts have fewer. This is a fundamental constraint, not a flaw.
+As more locations adopt, the pool of available control units shrinks. Early cohorts have plenty of not-yet-treated locations to compare against. Late cohorts have fewer. This is a fundamental constraint, not a flaw.
 
 ![Shrinking Controls](/assets/images/posts/staggered-did/shrinking-controls.png)
 *For each cohort month: blue = current treatment locations, red = locations about to start treatment next month (being "shaved off" from the control pool), gray = remaining available controls. The control pool visibly shrinks as adoption progresses.*
@@ -457,7 +457,7 @@ Try setting the stagger range to 1 month (everyone adopts at roughly the same ti
 
 ## Limitations
 
-No approach covers everything. For this case I went through an example with some limitations.
+No approach covers everything. Here's what to watch for.
 
 ### Pre-Period Contamination
 

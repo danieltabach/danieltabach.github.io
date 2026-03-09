@@ -57,4 +57,29 @@
     text-align: left;
     line-height: 1.5;
   }
+
+  /* Wide layout + TOC: float TOC to right viewport edge
+     without reducing content width */
+  @media (min-width: 80em) {
+    .wide .sidebar__right {
+      position: fixed;
+      top: 4em;
+      right: 1.5em;
+      width: 180px;
+      max-height: calc(100vh - 6em);
+      overflow-y: auto;
+      font-size: 0.75em;
+      background: #fff;
+      border-left: 2px solid #f0f0f0;
+      padding: 0.75em;
+      z-index: 10;
+    }
+  }
+
+  /* Below 1280px: hide TOC to avoid overlapping content */
+  @media (max-width: 79.99em) {
+    .wide .sidebar__right {
+      display: none;
+    }
+  }
 </style>
