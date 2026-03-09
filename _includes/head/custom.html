@@ -58,26 +58,38 @@
     line-height: 1.5;
   }
 
-  /* Wide layout + TOC: float TOC to right viewport edge
-     without reducing content width */
-  @media (min-width: 80em) {
+  /* Wide layout + TOC: float in right margin, only on
+     screens wide enough to have real margin space (1600px+) */
+  @media (min-width: 100em) {
     .wide .sidebar__right {
       position: fixed;
       top: 4em;
-      right: 1.5em;
-      width: 180px;
+      right: 3em;
+      width: 220px;
       max-height: calc(100vh - 6em);
       overflow-y: auto;
-      font-size: 0.75em;
+      font-size: 0.85em;
       background: #fff;
-      border-left: 2px solid #f0f0f0;
-      padding: 0.75em;
+      border-left: 3px solid #4a86c8;
+      border-radius: 4px;
+      padding: 1em 1em 1em 1.2em;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       z-index: 10;
+    }
+
+    .wide .sidebar__right .toc__menu a {
+      color: #555;
+      padding: 0.3em 0;
+      display: block;
+    }
+
+    .wide .sidebar__right .toc__menu a:hover {
+      color: #4a86c8;
     }
   }
 
-  /* Below 1280px: hide TOC to avoid overlapping content */
-  @media (max-width: 79.99em) {
+  /* Below 1600px: hide floating TOC to avoid overlap */
+  @media (max-width: 99.99em) {
     .wide .sidebar__right {
       display: none;
     }
