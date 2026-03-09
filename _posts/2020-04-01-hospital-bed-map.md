@@ -6,6 +6,8 @@ categories: [data-viz]
 tags: [r, shiny, leaflet, visualization]
 author_profile: false
 classes: wide
+header:
+  teaser: /assets/images/posts/interactive_hospitals_map/thumbnail.PNG
 toc: false
 ---
 
