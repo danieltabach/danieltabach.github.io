@@ -65,26 +65,32 @@
       position: fixed;
       top: 4em;
       right: 3em;
-      width: 220px;
+      width: 250px;
       max-height: calc(100vh - 6em);
       overflow-y: auto;
-      font-size: 0.85em;
+      font-size: 1em;
       background: #fff;
       border-left: 3px solid #4a86c8;
       border-radius: 4px;
-      padding: 1em 1em 1em 1.2em;
+      padding: 1.2em 1.2em 1.2em 1.4em;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       z-index: 10;
     }
 
     .wide .sidebar__right .toc__menu a {
       color: #555;
-      padding: 0.3em 0;
+      padding: 0.35em 0;
       display: block;
+      line-height: 1.4;
     }
 
     .wide .sidebar__right .toc__menu a:hover {
       color: #4a86c8;
+    }
+
+    /* Hide h3+ subheadings from TOC (detail block internals) */
+    .wide .sidebar__right .toc__menu ul ul ul {
+      display: none;
     }
   }
 
