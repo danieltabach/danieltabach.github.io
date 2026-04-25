@@ -21,7 +21,7 @@ toc_sticky: true
 
 **[Read the full paper (PDF)](/assets/papers/ai_human_detection.pdf)**
 
-**Code:** [github.com/danieltabach/human_ai_detection_latex](https://github.com/danieltabach/human_ai_detection_latex)
+*Code and data available upon request.*
 
 ---
 
