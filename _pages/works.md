@@ -166,6 +166,34 @@ classes: wide
 ---
 
 <div class="work-section">
+<h2>Research</h2>
+<p>Independent research and published work.</p>
+
+<ul class="work-list">
+{% assign research = site.posts | where_exp: "post", "post.categories contains 'research'" %}
+{% for post in research %}
+<li>
+  <div class="work-thumbnail">
+    {% if post.header.teaser %}
+    <a href="{{ post.url }}"><img src="{{ post.header.teaser }}" alt="{{ post.title }}"></a>
+    {% endif %}
+  </div>
+  <div class="work-content">
+    <div class="work-title"><a href="{{ post.url }}">{{ post.title }}</a></div>
+    <div class="work-tags">
+      {% for tag in post.tags limit:4 %}
+      <span>{{ tag }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</li>
+{% endfor %}
+</ul>
+</div>
+
+---
+
+<div class="work-section">
 <h2>Applied Projects</h2>
 <p>Real-world applications of ML and data analysis.</p>
 
