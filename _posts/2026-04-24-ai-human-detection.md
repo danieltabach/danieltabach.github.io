@@ -19,7 +19,7 @@ toc_sticky: true
 
 ## Paper
 
-**[Read the full paper (PDF)](/assets/papers/ai_human_detection.pdf)**
+**[Read the full paper on ArXiv](https://arxiv.org/abs/2604.23471)**
 
 *Code and data available upon request.*
 
