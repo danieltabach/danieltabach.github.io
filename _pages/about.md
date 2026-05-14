@@ -153,6 +153,8 @@ Today I'm a Data Scientist at Chase, working on optimization and experimentation
 
 Chess, jiu-jitsu, fantasy books.
 
+As of May 2026, I took on a more formal role co-founding [Pressure Point Apparel](https://wearpressure.com) alongside my friend Rosa Khaimova. Pressure Point is a BJJ-focused apparel brand built around a simple philosophy: pressure is a privilege. In grappling, pressure teaches composure, patience, and the discipline to stay focused when things get difficult — and we believe that mindset extends far beyond the mat. The brand emphasizes control over chaos, timing over force, and quiet confidence over loud aggression.
+
 ---
 
 Feel free to reach out on [LinkedIn](https://linkedin.com/in/DanielTabach) or check out my work on [GitHub](https://github.com/danieltabach).

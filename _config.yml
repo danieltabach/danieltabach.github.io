@@ -46,7 +46,7 @@ plugins:
 author:
   name   : "Danny Tabach"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Data Scientist at Chase<br>MS Computational Data Science, Georgia Tech"
+  bio    : "Data Scientist at Chase | Co-Founder, Pressure Point<br>MS Computational Data Science, Georgia Tech"
   links:
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
